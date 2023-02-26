@@ -1,0 +1,10 @@
+{
+  "name": "antlrsample",
+  "version-string": "0.0.0",
+  "dependencies": [
+    "antlr4",
+    "cpp-httplib",
+    "nlohmann-json",
+    "fmt"
+  ]
+}
