@@ -1,4 +1,4 @@
-lexer grammar TLexer;
+lexer grammar BasicLexer;
 
 // These are all supported lexer sections:
 
@@ -72,6 +72,7 @@ DOT: '.';
 // methods
 DEF : 'DEF';
 ENDDEF : 'ENDDEF';
+RETURN : 'RETURN';
 
 // control flow
 IF: 'IF';
