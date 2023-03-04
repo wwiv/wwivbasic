@@ -16,21 +16,28 @@
 #include <string_view>
 
 using namespace wwivbasic;
+using namespace wwiv::core;
 
 int main(int argc, char* argv[]) {
   wwiv::core::CommandLine cmdline(argc, argv, {});
+  cmdline.add_argument(BooleanCommandLineArgument(
+    "show_parsetree", 't', "Display the parse tree before executing", false));
+  cmdline.add_argument(BooleanCommandLineArgument(
+    "execute", 'e', "Execute the script", true));
   if (!cmdline.Parse()) {
     fmt::print("{}", cmdline.GetHelp());
     return 2;
   }
-  if (argc < 1) {
-    fmt::print("Usage: \n\tbasicrun FILENAME.BAS\n\n");
+
+  if (cmdline.remaining().empty()) {
+    fmt::print("Usage: \n\tbasicrun <FILENAME.BAS>\n\n");
     return 2;
   }
+  const auto& filename = cmdline.remaining().front();
 
-  TextFile f(argv[1], "rb");
+  TextFile f(filename, "rb");
   if (!f) {
-    fmt::print("Unable to open file: {}\r\n", argv[1]);
+    fmt::print("Unable to open file: {}\r\n", filename);
     return 1;
   }
 
@@ -42,9 +49,10 @@ int main(int argc, char* argv[]) {
   BasicParser parser(&tokens);
   antlr4::tree::ParseTree* tree = parser.main();
 
-  // auto s = tree->toStringTree(&parser, true);
-  // std::cout << "Parse Tree: " << s << std::endl;
-  // std::cout << std::endl << std::endl;
+  if (cmdline.barg("show_parsetree")) {
+    auto s = tree->toStringTree(&parser, true);
+    fmt::print("Parse Tree: {}\r\n\n\n", s);
+  }
 
   wwivbasic::ExecutionContext ec;
   wwivbasic::FunctionDefVisitor fd(ec);
@@ -58,8 +66,10 @@ int main(int argc, char* argv[]) {
     return {};
   });
 
-  ExecutionVisitor v(ec);
-  v.visit(tree);
+  if (cmdline.barg("execute")) {
+    ExecutionVisitor v(ec);
+    v.visit(tree);
+  }
 
   return 0;
 }
