@@ -119,37 +119,97 @@ std::any Value::toAny() const {
   return value;
 }
 
-Value Value::operator+(const Value &that) {
+Value Value::operator+(const Value &that) const {
   switch (type) {
-  case Type::BOOLEAN: {
-    return toBool() || that.toBool();
-  } break;
-  case Type::INTEGER: {
-    return toInt() + that.toInt();
-  } break;
-  case Type::STRING: {
-    return fmt::format("{}{}", toString(), that.toString());
-  } break;
+  case Type::BOOLEAN:  return toBool() || that.toBool();
+  case Type::INTEGER:  return toInt() + that.toInt();
+  case Type::STRING:   return fmt::format("{}{}", toString(), that.toString());
   }
-
   return {};
 }
 
-Value Value::operator-(const Value &that) {
+Value Value::operator-(const Value &that) const {
   switch (type) {
-  case Type::BOOLEAN: {
-    return !(toBool() && that.toBool());
-  } break;
-  case Type::INTEGER: {
-    return toInt() - that.toInt();
-  } break;
-  case Type::STRING: {
-    return fmt::format("{}{}", toString(), that.toString());
-  } break;
+  case Type::BOOLEAN:  return !(toBool() && that.toBool());
+  case Type::INTEGER:  return toInt() - that.toInt();
+  case Type::STRING:   return fmt::format("{}{}", toString(), that.toString());
   }
-
   return {};
 }
+
+Value Value::operator*(const Value& that) const {
+  switch (type) {
+  case Type::BOOLEAN:  return (toBool() * that.toBool());
+  case Type::INTEGER:  return toInt() * that.toInt();
+  case Type::STRING:   return fmt::format("{}{}", toString(), that.toString()); // ????!
+  }
+  return {};
+}
+
+Value Value::operator/(const Value& that) const {
+  switch (type) {
+  case Type::BOOLEAN:  return false; // TODO WARN
+  case Type::INTEGER:  return toInt() / that.toInt();
+  case Type::STRING:   return fmt::format("{}{}", toString(), that.toString());
+  }
+  return {};
+}
+
+Value Value::operator%(const Value& that) const {
+  switch (type) {
+  case Type::BOOLEAN:  return false; // TODO WARN
+  case Type::INTEGER:  return toInt() % that.toInt();
+  case Type::STRING:   return fmt::format("{}{}", toString(), that.toString());
+  }
+  return {};
+}
+
+
+bool Value::operator<(const Value& that) const {
+  switch (type) {
+  case Type::BOOLEAN: return toBool()   < that.toBool();
+  case Type::INTEGER: return toInt()    < that.toInt();
+  case Type::STRING:  return toString() < that.toString();
+  }
+  return false;
+}
+
+bool Value::operator>(const Value& that) const {
+  switch (type) {
+  case Type::BOOLEAN: return toBool()   > that.toBool();
+  case Type::INTEGER: return toInt()    > that.toInt();
+  case Type::STRING:  return toString() > that.toString();
+  }
+  return false;
+}
+
+bool Value::operator==(const Value& that) const {
+  switch (type) {
+  case Type::BOOLEAN: return toBool()   == that.toBool();
+  case Type::INTEGER: return toInt()    == that.toInt();
+  case Type::STRING:  return toString() == that.toString();
+  }
+  return false;
+}
+
+Value Value::operator||(const Value& that) const {
+  switch (type) {
+  case Type::BOOLEAN: return toBool() || that.toBool();
+  case Type::INTEGER: return toInt() || that.toInt();
+  case Type::STRING:  return fmt::format("{}{}", toString(), that.toString()); // Is this right
+  }
+  return false;
+}
+
+Value Value::operator&&(const Value& that) const {
+  switch (type) {
+  case Type::BOOLEAN: return toBool() && that.toBool();
+  case Type::INTEGER: return toInt() && that.toInt();
+  case Type::STRING:  return fmt::format("{}{}", toString(), that.toString()); // Is this right
+  }
+  return false;
+}
+
 
 // Execution Context
 
@@ -199,7 +259,8 @@ Value ExecutionContext::call(const std::string &function_name,
   // Validate params
   const auto want_count = fn.params.size();
   const auto have_count = params.size();
-  if (have_count != want_count) {
+  if (fn.type == basic_function_t::Type::BASIC && have_count != want_count) {
+    // Only bail on wrong args on BASIC functions.
     std::cout << "Wrong number of parameter to function: " << function_name << std::endl;
     std::cout << "have: " << have_count << std::endl;
     std::cout << "want: " << want_count << std::endl;
@@ -211,17 +272,25 @@ Value ExecutionContext::call(const std::string &function_name,
   Scope fnscope(function_name);
 
   // Add variables for parameters
-  for (int i = 0; i < want_count; i++) {
-    const auto& n = fn.params.at(i);
-    const auto& v = params.at(i);
-    fnscope.local_vars.insert_or_assign(n, Var(n, v));
+  if (fn.type == basic_function_t::Type::BASIC) {
+    for (int i = 0; i < want_count; i++) {
+      const auto& n = fn.params.at(i);
+      const auto& v = params.at(i);
+      fnscope.local_vars.insert_or_assign(n, Var(n, v));
+    }
   }
   
   // Put the scope on top fo the stack
   scopes.push_back(fnscope);
 
-  // Visit the body of the function call
-  auto result = visitor->visit(fn.fn->statements());
+  Value result;
+  if (fn.type == basic_function_t::Type::BASIC) {
+    // Visit the body of the function call
+    result = Value(visitor->visit(fn.fn->statements()));
+  }
+  else if (fn.type == basic_function_t::Type::NATIVE) {
+    result = fn.cpp_fn(params);
+  }
 
   std::cout << "debug: " << Value(result).toString() << std::endl;
 

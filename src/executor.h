@@ -58,13 +58,13 @@ namespace wwivbasic {
 
     std::any visitIfThenElseStatement(BasicParser::IfThenElseStatementContext* context) override;
 
-    //std::any visitIfThenElseIfElseStatement(BasicParser::IfThenElseIfElseStatementContext* context) override;
+    std::any visitIfThenElseIfElseStatement(BasicParser::IfThenElseIfElseStatementContext* context) override;
 
     std::any visitReturnStatement(BasicParser::ReturnStatementContext* context) override;
 
     //std::any visitId(BasicParser::IdContext* context) override;
 
-    //std::any visitVariable(BasicParser::VariableContext* context) override;
+    std::any visitVariable(BasicParser::VariableContext* context) override;
 
     //std::any visitProcedureName(BasicParser::ProcedureNameContext* context) override;
 

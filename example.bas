@@ -1,12 +1,17 @@
-If a = 1 Then
-  print(1)
-Else
-  print(0)
-EndIf
-
-def foo(a, b) 
-  return a + b
+def foo(a, b)
+Return a + b
 enddef
 
+a = 20
 f = foo(a, 123 + 17)
-a = b + "c"
+a = a + 12
+
+If a = 1 Then
+PRINT("a equals 1")
+ElseIf a = 23 Then
+PRINT("a equals 23")
+ElseIf a = 32 Then
+PRINT("a equals 32")
+Else
+PRINT("a does not equal 1 or 23 or 32")
+EndIf

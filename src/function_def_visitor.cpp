@@ -11,6 +11,7 @@ std::any FunctionDefVisitor::visitProcedureDefinition(BasicParser::ProcedureDefi
 
   basic_function_t f{};
   f.name = name;
+  f.type = basic_function_t::Type::BASIC;
   f.params = std::any_cast<std::vector<std::string>>(params);
   f.fn = context;
 

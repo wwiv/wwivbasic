@@ -22,8 +22,6 @@ namespace wwivbasic {
 
     std::any visitParameterDefinitionList(BasicParser::ParameterDefinitionListContext* context) override;
 
-    std::map<std::string, basic_function_t> functions_;
-
 private:
   ExecutionContext& ec_;
   };

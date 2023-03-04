@@ -3,6 +3,7 @@
 #include "BasicParser.h"
 #include <any>
 #include <deque>
+#include <functional>
 #include <string>
 #include <map>
 #include <vector>
@@ -18,7 +19,7 @@ public:
   std::any value;
   Type type;
 
-  Value() : value(std::string()) {}
+  Value() : value(std::string()), type(Type::STRING) {}
   Value(bool b) : value(b), type(Type::BOOLEAN) {}
   Value(int i) : value(i), type(Type::INTEGER) {}
   Value(const std::string& s) : value(s), type(Type::STRING) {}
@@ -43,8 +44,20 @@ public:
   }
   
   // operators
-  Value operator+(const Value& that);
-  Value operator-(const Value& that);
+  Value operator+(const Value& that) const;
+  Value operator-(const Value& that) const;
+  Value operator*(const Value& that) const;
+  Value operator/(const Value& that) const;
+  Value operator%(const Value& that) const;
+
+
+  Value operator||(const Value& that) const;
+  Value operator&&(const Value& that) const;
+
+  bool operator<(const Value & that) const;
+  bool operator>(const Value& that) const;
+  bool operator==(const Value& that) const;
+  bool operator!=(const Value& that) const { return !(*this == that); }
 };
 
 class Var {
@@ -63,9 +76,15 @@ public:
   std::map<std::string, Var> local_vars;
 };
 
+typedef std::function<Value(std::vector<Value>)> basic_function_fn;
+
 struct basic_function_t {
+  enum class Type { NATIVE, BASIC };
+  
   std::string name;
-  BasicParser::ProcedureDefinitionContext* fn;
+  Type type{ Type::BASIC };
+  BasicParser::ProcedureDefinitionContext* fn{nullptr};
+  basic_function_fn cpp_fn;
   std::vector<std::string> params;
 };
 
@@ -80,6 +99,25 @@ public:
   bool upsert(const std::string& name, const Value& value);
   Value var(const std::string& name);
   Value call(const std::string& function_name, const std::vector<Value>& params, ExecutionVisitor* visitor);
+
+  void native_function(const std::string& name, basic_function_fn fn, const std::vector<std::string>& params) {
+    basic_function_t bft{};
+    bft.type = basic_function_t::Type::NATIVE;
+    bft.cpp_fn = fn;
+    bft.name = name;
+    bft.params = params;
+
+    functions.insert_or_assign(name, bft);
+  }
+
+  void native_function(const std::string& name, basic_function_fn fn) {
+    basic_function_t bft{};
+    bft.type = basic_function_t::Type::NATIVE;
+    bft.cpp_fn = fn;
+    bft.name = name;
+
+    functions.insert_or_assign(name, bft);
+  }
 
   std::deque<Scope> scopes;
   std::map<std::string, Var> global_vars;
