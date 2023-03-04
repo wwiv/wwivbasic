@@ -1,18 +1,18 @@
+#include "BasicLexer.h"
+#include "BasicParser.h"
+#include "BasicParserBaseVisitor.h"
+#include "antlr4-runtime.h"
+#include "execution_context.h"
+#include "executor.h"
+#include "fmt/format.h"
+#include "function_def_visitor.h"
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
 #include <optional>
 #include <string>
-#include "fmt/format.h"
-#include "antlr4-runtime.h"
-#include "BasicLexer.h"
-#include "BasicParser.h"
-#include "BasicParserBaseVisitor.h"
-#include "executor.h"
-#include "execution_context.h"
-#include "function_def_visitor.h"
 
-std::optional<std::string> get_file_contents(const char *filename) {
+std::optional<std::string> get_file_contents(const char* filename) {
   if (auto* fp = std::fopen(filename, "rb")) {
     std::string contents;
     std::fseek(fp, 0, SEEK_END);
@@ -55,7 +55,7 @@ int main(int argc, const char* argv[]) {
     }
     std::cout << std::endl;
     return {};
-    });
+  });
 
   ExecutionVisitor v(execution_context);
   v.visit(tree);

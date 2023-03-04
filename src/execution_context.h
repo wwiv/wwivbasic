@@ -4,14 +4,12 @@
 #include <any>
 #include <deque>
 #include <functional>
-#include <string>
 #include <map>
-#include <vector>
+#include <string>
 #include <type_traits>
+#include <vector>
 
 namespace wwivbasic {
-
-int to_int(const std::string& s); 
 
 class Value {
 public:
@@ -29,20 +27,7 @@ public:
   int toInt() const;
   std::string toString() const;
   std::any toAny() const;
-  template<typename T> 
-  T get() const {
-    if constexpr (std::is_same_v<T, bool>) {
-      return toBool();
-    } else if constexpr (std::is_same_v<T, int>) {
-      return toInt();
-    }
-    else if constexpr(std::is_same_v<T, std::string>) {
-      return toString();
-    } else {
-      static_assert("boo");
-    }
-  }
-  
+
   // operators
   Value operator+(const Value& that) const;
   Value operator-(const Value& that) const;
@@ -50,11 +35,10 @@ public:
   Value operator/(const Value& that) const;
   Value operator%(const Value& that) const;
 
-
   Value operator||(const Value& that) const;
   Value operator&&(const Value& that) const;
 
-  bool operator<(const Value & that) const;
+  bool operator<(const Value& that) const;
   bool operator>(const Value& that) const;
   bool operator==(const Value& that) const;
   bool operator!=(const Value& that) const { return !(*this == that); }
@@ -68,7 +52,6 @@ public:
   Value value;
 };
 
-
 class Scope {
 public:
   Scope(const std::string& name) : fn_name(name) {}
@@ -78,12 +61,21 @@ public:
 
 typedef std::function<Value(std::vector<Value>)> basic_function_fn;
 
-struct basic_function_t {
+class BasicFunction {
+public:
   enum class Type { NATIVE, BASIC };
-  
+
+  BasicFunction(const std::string& n, BasicParser::ProcedureDefinitionContext* fn,
+                const std::vector<std::string>& p)
+      : name(n), type(Type::BASIC), def_fn(fn), params(p) {}
+
+  BasicFunction(const std::string& n, const basic_function_fn& fn,
+                const std::vector<std::string>& p)
+      : name(n), type(Type::NATIVE), cpp_fn(fn), params(p) {}
+
   std::string name;
-  Type type{ Type::BASIC };
-  BasicParser::ProcedureDefinitionContext* fn{nullptr};
+  Type type{Type::BASIC};
+  BasicParser::ProcedureDefinitionContext* def_fn{nullptr};
   basic_function_fn cpp_fn;
   std::vector<std::string> params;
 };
@@ -96,32 +88,24 @@ public:
 
   // Creates a variable at the top scope or assigns a value to an existing
   // variable.
-  bool upsert(const std::string& name, const Value& value);
+  void upsert(const std::string& name, const Value& value);
   Value var(const std::string& name);
-  Value call(const std::string& function_name, const std::vector<Value>& params, ExecutionVisitor* visitor);
+  Value call(const std::string& function_name, const std::vector<Value>& params,
+             ExecutionVisitor* visitor);
 
-  void native_function(const std::string& name, basic_function_fn fn, const std::vector<std::string>& params) {
-    basic_function_t bft{};
-    bft.type = basic_function_t::Type::NATIVE;
-    bft.cpp_fn = fn;
-    bft.name = name;
-    bft.params = params;
-
-    functions.insert_or_assign(name, bft);
+  void native_function(const std::string& name, const basic_function_fn& fn,
+                       const std::vector<std::string>& params) {
+    functions.insert_or_assign(name, BasicFunction(name, fn, params));
   }
 
-  void native_function(const std::string& name, basic_function_fn fn) {
-    basic_function_t bft{};
-    bft.type = basic_function_t::Type::NATIVE;
-    bft.cpp_fn = fn;
-    bft.name = name;
-
-    functions.insert_or_assign(name, bft);
+  void native_function(const std::string& name, const basic_function_fn& fn) {
+    std::vector<std::string> v;
+    native_function(name, fn, v);
   }
 
   std::deque<Scope> scopes;
   std::map<std::string, Var> global_vars;
-  std::map<std::string, basic_function_t> functions;
+  std::map<std::string, BasicFunction> functions;
 };
 
-}
+} // namespace wwivbasic

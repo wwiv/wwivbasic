@@ -5,21 +5,18 @@
 
 namespace wwivbasic {
 
-std::any FunctionDefVisitor::visitProcedureDefinition(BasicParser::ProcedureDefinitionContext* context) {
-  auto params = visitParameterDefinitionList(context->parameterDefinitionList());
-  auto name = context->procedureName()->getText();
+std::any
+FunctionDefVisitor::visitProcedureDefinition(BasicParser::ProcedureDefinitionContext* context) {
+  const auto params = visitParameterDefinitionList(context->parameterDefinitionList());
+  const auto name = context->procedureName()->getText();
 
-  basic_function_t f{};
-  f.name = name;
-  f.type = basic_function_t::Type::BASIC;
-  f.params = std::any_cast<std::vector<std::string>>(params);
-  f.fn = context;
-
-  ec_.functions[name] = f;
+  BasicFunction fn(name, context, std::any_cast<std::vector<std::string>>(params));
+  ec_.functions[name] = fn;
   return {};
 }
 
-std::any FunctionDefVisitor::visitParameterDefinitionList(BasicParser::ParameterDefinitionListContext* context) {
+std::any FunctionDefVisitor::visitParameterDefinitionList(
+    BasicParser::ParameterDefinitionListContext* context) {
   auto ids = context->id();
   std::vector<std::string> result;
   for (auto* id : ids) {
@@ -30,5 +27,4 @@ std::any FunctionDefVisitor::visitParameterDefinitionList(BasicParser::Parameter
   return result;
 }
 
-
-}
+} // namespace wwivbasic

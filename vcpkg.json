@@ -3,6 +3,7 @@
   "version-string": "0.0.0",
   "dependencies": [
     "antlr4",
+    "cereal",
     "cpp-httplib",
     "nlohmann-json",
     "fmt"
