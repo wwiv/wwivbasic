@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(antlrsample)
+project(wwivbasicdemo)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -16,38 +16,46 @@ add_definitions(-DANTLR4CPP_STATIC)
 set(ANTLR4_WITH_STATIC_CRT OFF)
 
 # generate lexer
- antlr4_generate(
-   wwivbasic_lexer
-   ${CMAKE_CURRENT_SOURCE_DIR}/BasicLexer.g4
-   LEXER
-   FALSE
-   FALSE
-   "wwivbasic"
-   )
+antlr4_generate(wwivbasic_lexer
+                ${CMAKE_CURRENT_SOURCE_DIR}/BasicLexer.g4
+                LEXER
+                FALSE
+                FALSE
+                "wwivbasic"
+)
 
- # generate parser
- antlr4_generate(
-   wwivbasic_parser
-   ${CMAKE_CURRENT_SOURCE_DIR}/BasicParser.g4
-   PARSER
-   FALSE
-   TRUE
-   "wwivbasic"
-   "${ANTLR4_TOKEN_FILES_wwivbasic_lexer}"
-   "${ANTLR4_TOKEN_DIRECTORY_wwivbasic_lexer}"
-   )
-   
-add_executable(antlrsample 
-               "src/main.cpp" 
-               "src/execution_context.cpp"
-               "src/executor.cpp"
-               "src/function_def_visitor.cpp"
-               ${ANTLR4_SRC_FILES_wwivbasic_lexer} 
-               ${ANTLR4_SRC_FILES_wwivbasic_parser}
-               )
+# generate parser
+antlr4_generate(wwivbasic_parser
+                ${CMAKE_CURRENT_SOURCE_DIR}/BasicParser.g4
+                PARSER
+                FALSE
+                TRUE
+                "wwivbasic"
+                "${ANTLR4_TOKEN_FILES_wwivbasic_lexer}"
+                "${ANTLR4_TOKEN_DIRECTORY_wwivbasic_lexer}"
+)
+ 
+add_library(wwivbasic_interpreter
+            "src/execution_context.cpp"
+            "src/executor.cpp"
+            "src/function_def_visitor.cpp"
+            ${ANTLR4_SRC_FILES_wwivbasic_lexer} 
+            ${ANTLR4_SRC_FILES_wwivbasic_parser}
+)
 
-target_link_libraries(antlrsample antlr4_shared fmt::fmt-header-only)
-
-target_include_directories(antlrsample PRIVATE ${ANTLR4_INCLUDE_DIR} 
+target_include_directories(wwivbasic_interpreter PUBLIC ${ANTLR4_INCLUDE_DIR} 
                            ${ANTLR4_INCLUDE_DIR_wwivbasic_lexer} 
                            ${ANTLR4_INCLUDE_DIR_wwivbasic_parser})
+target_link_libraries(wwivbasic_interpreter antlr4_shared fmt::fmt-header-only)
+target_compile_definitions(wwivbasic_interpreter PUBLIC _CRT_SECURE_NO_WARNINGS)
+
+
+
+add_executable(basicrun
+               "src/basicrun.cpp")
+target_link_libraries(basicrun wwivbasic_interpreter)
+
+
+add_executable(antlrdemo
+               "src/antlrdemo.cpp")
+target_link_libraries(antlrdemo wwivbasic_interpreter)

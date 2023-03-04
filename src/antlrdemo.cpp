@@ -1,16 +1,3 @@
-
-/* Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
- * Use of this file is governed by the BSD 3-clause license that
- * can be found in the LICENSE.txt file in the project root.
- */
-
- //
- //  main.cpp
- //  antlr4-cpp-demo
- //
- //  Created by Mike Lischke on 13.03.16.
- //
-
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
@@ -38,8 +25,6 @@ std::optional<std::string> get_file_contents(const char *filename) {
   return std::nullopt;
 }
 
-
-using namespace antlr4;
 using namespace wwivbasic;
 
 int main(int argc, const char* argv[]) {
@@ -48,12 +33,12 @@ int main(int argc, const char* argv[]) {
     fmt::print("Unable to open file: example.bas\r\n");
     return 1;
   }
-  ANTLRInputStream input(text.value());
+  antlr4::ANTLRInputStream input(text.value());
   BasicLexer lexer(&input);
-  CommonTokenStream tokens(&lexer);
+  antlr4::CommonTokenStream tokens(&lexer);
 
   BasicParser parser(&tokens);
-  tree::ParseTree* tree = parser.main();
+  antlr4::tree::ParseTree* tree = parser.main();
 
   auto s = tree->toStringTree(&parser, true);
   std::cout << "Parse Tree: " << s << std::endl;
