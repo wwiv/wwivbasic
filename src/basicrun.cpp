@@ -18,7 +18,11 @@
 using namespace wwivbasic;
 
 int main(int argc, char* argv[]) {
-  wwiv::core::CommandLine cmdline_(argc, argv, {});
+  wwiv::core::CommandLine cmdline(argc, argv, {});
+  if (!cmdline.Parse()) {
+    fmt::print("{}", cmdline.GetHelp());
+    return 2;
+  }
   if (argc < 1) {
     fmt::print("Usage: \n\tbasicrun FILENAME.BAS\n\n");
     return 2;

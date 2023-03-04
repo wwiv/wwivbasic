@@ -11,7 +11,7 @@ FunctionDefVisitor::visitProcedureDefinition(BasicParser::ProcedureDefinitionCon
   const auto name = context->procedureName()->getText();
 
   BasicFunction fn(name, context, std::any_cast<std::vector<std::string>>(params));
-  ec_.functions[name] = fn;
+  ec_.functions.insert_or_assign(name, fn);
   return {};
 }
 

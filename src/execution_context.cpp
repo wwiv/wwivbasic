@@ -277,7 +277,7 @@ Value ExecutionContext::call(const std::string& function_name, const std::vector
   Value result;
   if (fn.type == BasicFunction::Type::BASIC) {
     // Visit the body of the function call
-    result = Value(visitor->visit(fn.fn->statements()));
+    result = Value(visitor->visit(fn.def_fn->statements()));
   } else if (fn.type == BasicFunction::Type::NATIVE) {
     result = fn.cpp_fn(params);
   }
