@@ -6,6 +6,7 @@
 #include "fmt/format.h"
 
 #include <any>
+#include <iostream>
 #include <map>
 #include <stack>
 #include <string>
@@ -109,7 +110,7 @@ Value Value::operator+(const Value& that) const {
   case Type::INTEGER:
     return Value(toInt() + that.toInt());
   case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that.toString()));
+    return Value(fmt::format("{}{}", toString(), that));
   }
   return Value(false);
 }
@@ -121,7 +122,7 @@ Value Value::operator-(const Value& that) const {
   case Type::INTEGER:
     return Value(toInt() - that.toInt());
   case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that.toString()));
+    return Value(fmt::format("{}{}", toString(), that));
   }
   return Value(false);
 }
@@ -133,7 +134,7 @@ Value Value::operator*(const Value& that) const {
   case Type::INTEGER:
     return Value(toInt() * that.toInt());
   case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that.toString())); // ????!
+    return Value(fmt::format("{}{}", toString(), that)); // ????!
   }
   return Value(false);
 }
@@ -145,7 +146,7 @@ Value Value::operator/(const Value& that) const {
   case Type::INTEGER:
     return Value(toInt() / that.toInt());
   case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that.toString()));
+    return Value(fmt::format("{}{}", toString(), that));
   }
   return Value(false);
 }
@@ -157,7 +158,7 @@ Value Value::operator%(const Value& that) const {
   case Type::INTEGER:
     return Value(toInt() % that.toInt());
   case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that.toString()));
+    return Value(fmt::format("{}{}", toString(), that));
   }
   return Value(false);
 }
@@ -205,7 +206,7 @@ Value Value::operator||(const Value& that) const {
   case Type::INTEGER:
     return Value(toInt() || that.toInt());
   case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that.toString())); // Is this right
+    return Value(fmt::format("{}{}", toString(), that)); // Is this right
   }
   return Value(false);
 }
@@ -217,9 +218,14 @@ Value Value::operator&&(const Value& that) const {
   case Type::INTEGER:
     return Value(toInt() && that.toInt());
   case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that.toString())); // Is this right
+    return Value(fmt::format("{}{}", toString(), that)); // Is this right
   }
   return Value(false);
+}
+
+std::ostream& operator<<(std::ostream& os, const Value& v) {
+  os << v.toString();
+  return os;
 }
 
 } // namespace wwivbasic

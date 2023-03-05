@@ -25,9 +25,6 @@ std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext*
   std::cout << "Procedure Call: " << fn_name << std::endl;
   std::vector<Value> params;
   if (ctx->parameterList()) {
-    //for (const auto param : ctx->parameterList()->expr()) {
-    //  std::cout << "param: " << param->getText() << std::endl;
-    //}
     const auto ctxparams = visit(ctx->parameterList());
     params = std::any_cast<std::vector<Value>>(ctxparams);
   }
@@ -39,10 +36,8 @@ std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext*
 std::any ExecutionVisitor::visitParameterList(BasicParser::ParameterListContext* context) {
   std::vector<Value> result;
   for (auto* expr : context->expr()) {
-    // todo: add visitId
     result.push_back(Value(visit(expr)));
   }
-
   return result;
 }
 
@@ -106,9 +101,7 @@ std::any
 ExecutionVisitor::visitAssignmentStatement(BasicParser::AssignmentStatementContext* context) {
   const auto varname = context->variable()->getText();
   const auto value = Value(visit(context->expr()));
-  std::cout << "ASSIGN: " << varname << " = " << value.toString() << std::endl;
-  //TOOD(rushfan): Once we had "MODULE modulename" support, need to load these
-  // into the RIGHT module.
+  std::cout << "ASSIGN: " << varname << " = " << value << std::endl;
   ec_.upsert(varname, value);
   return {};
 }
@@ -142,7 +135,7 @@ std::any ExecutionVisitor::visitRelation(BasicParser::RelationContext* context) 
     std::cerr << "WTF: " << context->getText();
     return {};
   }
-  std::cout << left.toString() << op->getText() << right.toString() << " = " << std::boolalpha
+  std::cout << left << op->getText() << right << " = " << std::boolalpha
             << result << std::endl;
   return result;
 }
@@ -176,7 +169,7 @@ std::any ExecutionVisitor::visitMulDiv(BasicParser::MulDivContext* context) {
     std::cerr << "WTF: " << context->getText();
     return {};
   }
-  std::cout << left.toString() << op << right.toString() << " = " << result.toString() << std::endl;
+  std::cout << left << op << right << " = " << result << std::endl;
   return result.toAny();
 }
 
@@ -199,7 +192,7 @@ std::any ExecutionVisitor::visitAddSub(BasicParser::AddSubContext* context) {
     std::cerr << "WTF: " << context->getText();
     return {};
   }
-  std::cout << left.toString() << op << right.toString() << " = " << result.toString() << std::endl;
+  std::cout << left << op << right << " = " << result << std::endl;
   return result.toAny();
 }
 
@@ -214,9 +207,8 @@ std::any
 ExecutionVisitor::visitIfThenElseStatement(BasicParser::IfThenElseStatementContext* context) {
   if (const auto result = std::any_cast<bool>(visit(context->expr()))) {
     return visit(context->statements(0));
-  } else {
-    return visit(context->statements(1));
-  }
+  } 
+  return visit(context->statements(1));
 }
 
 std::any ExecutionVisitor::visitIfThenElseIfElseStatement(
@@ -257,12 +249,9 @@ std::any ExecutionVisitor::visitForStatement(BasicParser::ForStatementContext* c
     visit(ctx->statements());
     current = var.value.toInt();
   }
-  {
-    // Handle last loop where current == end;
-    var.value.set(end.toInt());
-    visit(ctx->statements());
-  }
-
+  // Handle last loop where current == end;
+  var.value.set(end.toInt());
+  visit(ctx->statements());
 
   // remove latest scope.
   ec_.module->scopes.pop_back();
@@ -271,7 +260,7 @@ std::any ExecutionVisitor::visitForStatement(BasicParser::ForStatementContext* c
 
 std::any ExecutionVisitor::visitReturnStatement(BasicParser::ReturnStatementContext* context) {
   auto result = visit(context->expr());
-  std::cout << "RETURN: " << Value(result).toString() << std::endl;
+  std::cout << "RETURN: " << Value(result) << std::endl;
   return_ = true;
   return result;
 }

@@ -33,7 +33,7 @@ Value Module::var(const std::string& name) {
   for (auto it = std::rbegin(scopes); it != std::rend(scopes); it++) {
     if (contains(it->local_vars, name)) {
       const auto& var = it->local_vars.at(name);
-      fmt::print("Found Var: {}={} at scope: {}\n", name, var.value.toString(), it->fn_name);
+      fmt::print("Found Var: {}={} at scope: {}\n", name, var.value, it->fn_name);
       return var.value;
     }
   }
@@ -98,7 +98,7 @@ Value Module::call(const std::string& function_name, const std::vector<Value>& p
     result = fn.cpp_fn(params);
   }
 
-  fmt::print("{} RETURNED: '{}'\n", fn.name, Value(result).toString());
+  fmt::print("{} RETURNED: '{}'\n", fn.name, Value(result));
 
   // remove latest scope.
   scopes.pop_back();

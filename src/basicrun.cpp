@@ -3,6 +3,7 @@
 #include "BasicParserBaseVisitor.h"
 #include "antlr4-runtime.h"
 #include "core/command_line.h"
+#include "core/log.h"
 #include "core/textfile.h"
 #include "execution_context.h"
 #include "executor.h"
@@ -18,7 +19,15 @@
 using namespace wwivbasic;
 using namespace wwiv::core;
 
+std::string easy(std::string s) {
+  fmt::print("easy: {}\n", s);
+  return {};
+}
+
 int main(int argc, char* argv[]) {
+  LoggerConfig config;
+
+  Logger::Init(argc, argv, config);
   wwiv::core::CommandLine cmdline(argc, argv, {});
   cmdline.add_argument(BooleanCommandLineArgument(
     "show_parsetree", 't', "Display the parse tree before executing", false));
@@ -67,8 +76,16 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl;
     return {};
   });
-  ec.root->native_function("VERSION", [](std::vector<Value> args) -> Value {
-    return Value("1.0.2");
+  std::function<std::string(std::string)> x = easy;
+  //ec.root->native_function(std::string("EASY"), make_basic_fn<std::string>([](std::string s) -> std::string { return easy(s); }));
+  using namespace std::placeholders;
+  ec.root->native_function("EASY", make_basic_fn_(as_fn(easy)));
+  ec.root->native_function("PRINT", [](std::vector<Value> args) -> Value {
+    for (const auto& arg : args) {
+      std::cout << arg.toString() << " ";
+    }
+    std::cout << std::endl;
+    return {};
     });
 
   if (cmdline.barg("execute")) {

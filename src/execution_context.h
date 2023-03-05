@@ -54,6 +54,89 @@ public:
   std::vector<std::string> params;
 };
 
+
+//template<typename F, typename R = typename std::result_of<F(T)>::type>
+//TMaybe<R> maybe_if(const TMaybe<T>& m, F f) {
+//  return (m.value != nullptr) ? TMaybe<R>(f(m.value)) : TMaybe();
+//}
+
+template<class F>
+struct function_traits;
+
+// function pointer
+template<class R, class... Args>
+struct function_traits<R(*)(Args...)> : public function_traits<R(Args...)>
+{};
+
+template<class R, class... Args>
+struct function_traits<R(Args...)>
+{
+  using return_type = R;
+
+  static constexpr std::size_t arity = sizeof...(Args);
+
+  template <std::size_t N>
+  struct argument
+  {
+    static_assert(N < arity, "error: invalid parameter index.");
+    using type = typename std::tuple_element<N, std::tuple<Args...>>::type;
+  };
+};
+
+
+template<class T>
+struct AsFunction
+  : public AsFunction<decltype(&T::operator())>
+{};
+
+template<class ReturnType, class... Args>
+struct AsFunction<ReturnType(Args...)> {
+  using type = std::function<ReturnType(Args...)>;
+};
+
+template<class ReturnType, class... Args>
+struct AsFunction<ReturnType(*)(Args...)> {
+  using type = std::function<ReturnType(Args...)>;
+};
+
+
+template<class Class, class ReturnType, class... Args>
+struct AsFunction<ReturnType(Class::*)(Args...) const> {
+  using type = std::function<ReturnType(Args...)>;
+};
+
+// makes various types of functions into a std::function
+template<class F>
+auto as_fn(F f) -> typename AsFunction<F>::type {
+  using traits = function_traits<decltype(f)>;
+  fmt::print("Has {} args\n", traits::arity);
+    return { f };
+}
+
+template<typename R, typename P1>
+basic_function_fn make_basic_fn_(std::function<R(P1)> f) {
+  basic_function_fn f1 = [=](std::vector<Value> params) -> Value {
+    if (params.size() < 1) {
+      // ERROR
+      return Value(false);
+    }
+    return Value(f(params.at(0).get<P1>()));
+  };
+  return f1;
+}
+
+//template<typename R, typename P1>
+//basic_function_fn make_basic_fn(R(*)(P1) f) {
+//  basic_function_fn f1 = [=](std::vector<Value> params) -> Value {
+//    if (params.size() < 1) {
+//      // ERROR
+//      return Value(false);
+//    }
+//    return Value(f(params.at(0).get<P1>()));
+//  };
+//  return f1;
+//}
+
 class ExecutionVisitor;
 
 class Module {

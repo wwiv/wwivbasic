@@ -7,6 +7,7 @@
 
 #include <any>
 #include <deque>
+#include <iosfwd>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -49,6 +50,9 @@ public:
   std::string toString() const;
   std::any toAny() const;
 
+  template <typename T> 
+  T get() const { return std::get<T>(value_); }
+
   // operators
   Value operator+(const Value& that) const;
   Value operator-(const Value& that) const;
@@ -71,4 +75,16 @@ private:
 
 };
 
+std::ostream& operator<<(std::ostream& os, const Value& v);
+
+
 } // namespace wwivbasic
+
+template <> class fmt::formatter<wwivbasic::Value> {
+public:
+  constexpr auto parse(fmt::format_parse_context& ctx) { return ctx.begin(); }
+  template <typename Context>
+  constexpr auto format(wwivbasic::Value const& v, Context& ctx) const {
+    return format_to(ctx.out(), "{}", v.toString());
+  }
+};
