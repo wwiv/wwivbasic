@@ -1,7 +1,7 @@
 import @wwiv.io
 import "common.bas"
 
-PRINT(VERSION())
+wwiv.io.print(VERSION())
 
 def foo(a, b)
 Return a + b

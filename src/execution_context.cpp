@@ -1,4 +1,5 @@
 #include "execution_context.h"
+#include "core/textfile.h"
 #include "core/stl.h"
 #include "executor.h"
 #include "fmt/format.h"
@@ -305,6 +306,11 @@ ExecutionContext::ExecutionContext() {
   root = module = &modules.at("");
 }
 
+ExecutionContext::ExecutionContext(const std::filesystem::path& path) : ExecutionContext() {
+  add_source(path);
+}
+
+
 // Splits a package off from identifier, i.e "foo.bar.baz" -> {"foo.bar", "baz"}
 std::tuple<std::string, std::string> split_package_from_id(const std::string& s) {
   if (const auto idx = s.rfind('.'); idx != std::string::npos) {
@@ -379,4 +385,14 @@ Value ExecutionContext::call(const std::string& function_name, const std::vector
 
 }
 
+bool ExecutionContext::add_source(const std::filesystem::path& path) {
+  TextFile f(path, "rb");
+  if (!f) {
+    fmt::print("Unable to open file: {}\r\n", path.string());
+    return false;
+  }
+
+  const auto text = f.ReadFileIntoString();
+  return add_source(path.string(), text);
+}
 } // namespace wwivbasic

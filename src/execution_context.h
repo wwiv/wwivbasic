@@ -1,10 +1,15 @@
 #pragma once
 
+#include "BasicLexer.h"
 #include "BasicParser.h"
+#include "core/stl.h"
+
 #include <any>
 #include <deque>
+#include <filesystem>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -57,7 +62,7 @@ class Scope {
 public:
   Scope(const std::string& name) : fn_name(name) {}
   std::string fn_name;
-  std::map<std::string, Var> local_vars;
+  std::map<std::string, Var, wwiv::stl::ci_less> local_vars;
 };
 
 typedef std::function<Value(std::vector<Value>)> basic_function_fn;
@@ -109,15 +114,36 @@ public:
   }
 
   std::deque<Scope> scopes;
-  std::map<std::string, BasicFunction> functions;
+  std::map<std::string, BasicFunction, wwiv::stl::ci_less> functions;
 
 private:
-  const std::string name_;
+  std::string name_;
 };
 
+class SourceUnit {
+public:
+  SourceUnit(const std::string& filename, const std::string& text)
+      : filename_(filename), text_(text), input_(text), lexer_(&input_), tokens_(&lexer_),
+        parser_(&tokens_) {
+    tree_ = parser_.main();
+  }
+
+  // Gets the parse tree for this source unit.
+  antlr4::tree::ParseTree* tree() { return tree_; }
+  BasicParser* parser() { return &parser_; }
+
+  std::string filename_;
+  std::string text_;
+  antlr4::ANTLRInputStream input_;
+  BasicLexer lexer_;
+  antlr4::CommonTokenStream tokens_;
+  BasicParser parser_;
+  antlr4::tree::ParseTree* tree_{nullptr};
+};
 
 class ExecutionContext {
 public:
+  ExecutionContext(const std::filesystem::path& path);
   ExecutionContext();
 
   // Creates a variable at the top scope or updates existing variable.
@@ -128,10 +154,26 @@ public:
   Value call(const std::string& function_name, const std::vector<Value>& params,
     ExecutionVisitor* visitor);
 
+  bool add_source(const std::filesystem::path& path, const std::string& text) {
+    sources.insert_or_assign(path, std::make_unique<SourceUnit>(path.string(), text));
+    return true;
+  }
+
+  bool add_source(const std::filesystem::path& path);
+
+  // Gets the parse tree for some unit
+  antlr4::tree::ParseTree* parseTree(const std::filesystem::path& filename) {
+    if (!wwiv::stl::contains(sources, filename)) {
+      return nullptr;
+    }
+    return sources.at(filename)->tree();
+  }
+
   // list of modules currently imported using "IMPORT @module"
-  std::set<std::string> imported_modules;
+  std::set<std::string, wwiv::stl::ci_less> imported_modules;
   // All registered modules
-  std::map<std::string, Module> modules;
+  std::map<std::string, Module, wwiv::stl::ci_less> modules;
+  std::map<std::filesystem::path, std::unique_ptr<SourceUnit>> sources;
   Module* root{ nullptr };
   Module* module{ nullptr };
 };

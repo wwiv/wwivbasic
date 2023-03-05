@@ -32,30 +32,28 @@ int main(int argc, char* argv[]) {
     fmt::print("{}", cmdline.GetHelp());
     return 2;
   }
+
   const auto& filename = cmdline.remaining().front();
-
-  TextFile f(filename, "rb");
-  if (!f) {
-    fmt::print("Unable to open file: {}\r\n", filename);
-    return 1;
-  }
-
-  const auto text = f.ReadFileIntoString();
-  antlr4::ANTLRInputStream input(text);
-  BasicLexer lexer(&input);
-  antlr4::CommonTokenStream tokens(&lexer);
-
-  BasicParser parser(&tokens);
-  antlr4::tree::ParseTree* tree = parser.main();
+  wwivbasic::ExecutionContext ec(filename);
+  antlr4::tree::ParseTree* tree = ec.parseTree(filename);
 
   if (cmdline.barg("show_parsetree")) {
-    auto s = tree->toStringTree(&parser, true);
+    auto& su = ec.sources.at(filename);
+    const auto s = su->tree()->toStringTree(su->parser(), true);
     fmt::print("Parse Tree: {}\r\n\n\n", s);
   }
 
-  wwivbasic::ExecutionContext ec;
   wwivbasic::FunctionDefVisitor fd(ec);
   fd.visit(tree);
+
+  Module io("wwiv.io");
+  io.native_function("PRINT", [](std::vector<Value> args) -> Value {
+    if (!args.empty()) {
+      fmt::print("WWIV.IO: {}\r\n", args.front().toString());
+    }
+    return {};
+    });
+  ec.modules.insert_or_assign("wwiv.io", io);
 
   ec.module->native_function("PRINT", [](std::vector<Value> args) -> Value {
     for (const auto& arg : args) {
