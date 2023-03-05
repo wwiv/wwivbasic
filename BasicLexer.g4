@@ -39,6 +39,8 @@ tokens {
 INT: Digit+;
 Digit: [0-9];
 
+TRUE: 'TRUE';
+FALSE: 'FALSE';
 
 // BinaryOperators
 

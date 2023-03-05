@@ -19,16 +19,15 @@ std::any ExecutionVisitor::visitMain(BasicParser::MainContext* context) {
 
 std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext* ctx) {
   if (!ctx->procedureName()) {
-    return_ = false;
     return {};
   }
   const auto fn_name = ctx->procedureName()->getText();
   std::cout << "Procedure Call: " << fn_name << std::endl;
   std::vector<Value> params;
   if (ctx->parameterList()) {
-    for (const auto param : ctx->parameterList()->expr()) {
-      std::cout << "param: " << param->getText() << std::endl;
-    }
+    //for (const auto param : ctx->parameterList()->expr()) {
+    //  std::cout << "param: " << param->getText() << std::endl;
+    //}
     const auto ctxparams = visit(ctx->parameterList());
     params = std::any_cast<std::vector<Value>>(ctxparams);
   }
@@ -95,6 +94,10 @@ std::any ExecutionVisitor::visitString(BasicParser::StringContext* context) {
   return remove_quotes(context->getText());
 }
 
+std::any ExecutionVisitor::visitBooleanExpr(BasicParser::BooleanExprContext* context) {
+  return context->TRUE() != nullptr;
+}
+
 std::any ExecutionVisitor::visitInt(BasicParser::IntContext* context) {
   return to_number<int>(context->getText());
 }
@@ -150,11 +153,6 @@ std::any ExecutionVisitor::visitIdent(BasicParser::IdentContext* context) {
   return var.toAny();
 }
 
-std::any ExecutionVisitor::visitProcCall(BasicParser::ProcCallContext* context) {
-  auto result = visitChildren(context);
-  return_ = false;
-  return result;
-}
 
 std::any ExecutionVisitor::visitMulDiv(BasicParser::MulDivContext* context) {
   const auto op = context->multiplicativeoperator()->getStart();

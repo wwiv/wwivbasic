@@ -71,6 +71,12 @@ expr: expr relationaloperator expr      # Relation
     | identifier = id                   # Ident
     | INT                               # Int
     | STRING                            # String
+    | booleanExpr                       # Boolean
+;
+
+booleanExpr
+  : TRUE
+  | FALSE
 ;
 
 additiveoperator

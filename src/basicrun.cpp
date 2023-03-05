@@ -35,7 +35,12 @@ int main(int argc, char* argv[]) {
 
   const auto& filename = cmdline.remaining().front();
   wwivbasic::ExecutionContext ec(filename);
-  antlr4::tree::ParseTree* tree = ec.parseTree(filename);
+  auto tree = ec.parseTree(filename);
+
+  if (!tree) {
+    fmt::print("Unable to parse tree");
+    return 1;
+  }
 
   if (cmdline.barg("show_parsetree")) {
     auto& su = ec.sources.at(filename);
@@ -44,7 +49,7 @@ int main(int argc, char* argv[]) {
   }
 
   wwivbasic::FunctionDefVisitor fd(ec);
-  fd.visit(tree);
+  fd.visit(tree.value());
 
   Module io("wwiv.io");
   io.native_function("PRINT", [](std::vector<Value> args) -> Value {
@@ -68,7 +73,7 @@ int main(int argc, char* argv[]) {
 
   if (cmdline.barg("execute")) {
     ExecutionVisitor v(ec);
-    v.visit(tree);
+    v.visit(tree.value());
   }
 
   return 0;

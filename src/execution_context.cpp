@@ -98,7 +98,7 @@ Value Module::call(const std::string& function_name, const std::vector<Value>& p
     result = fn.cpp_fn(params);
   }
 
-  std::cout << "debug: " << Value(result).toString() << std::endl;
+  fmt::print("{} RETURNED: '{}'\n", fn.name, Value(result).toString());
 
   // remove latest scope.
   scopes.pop_back();
@@ -114,6 +114,12 @@ ExecutionContext::ExecutionContext() {
 
 ExecutionContext::ExecutionContext(const std::filesystem::path& path) : ExecutionContext() {
   add_source(path);
+}
+
+void BasicParserErrorListener::syntaxError(antlr4::Recognizer* recognizer, antlr4::Token* offendingSymbol, size_t line,
+  size_t charPositionInLine, const std::string& msg,
+  std::exception_ptr e) {
+  su_->errors.push_back(fmt::format("{}({}:{}) {}", su_->filename_, line, charPositionInLine, msg));
 }
 
 
@@ -184,7 +190,9 @@ Value ExecutionContext::call(const std::string& function_name, const std::vector
 bool ExecutionContext::add_source(const std::filesystem::path& path) {
   TextFile f(path, "rb");
   if (!f) {
-    fmt::print("Unable to open file: {}\r\n", path.string());
+    const auto err = fmt::format("Unable to open file: {}", path.string());
+    errors.push_back(err);
+    std::cout << err << std::endl;
     return false;
   }
 

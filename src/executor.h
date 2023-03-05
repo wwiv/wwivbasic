@@ -35,7 +35,7 @@ public:
 
   std::any visitIdent(BasicParser::IdentContext* context) override;
 
-  std::any visitProcCall(BasicParser::ProcCallContext* context) override;
+  //std::any visitProcCall(BasicParser::ProcCallContext* context) override;
 
   std::any visitMulDiv(BasicParser::MulDivContext* context) override;
 
@@ -44,6 +44,8 @@ public:
   std::any visitParens(BasicParser::ParensContext* context) override;
 
   std::any visitString(BasicParser::StringContext* context) override;
+
+  std::any visitBooleanExpr(BasicParser::BooleanExprContext* context) override;
 
   std::any visitInt(BasicParser::IntContext* context) override;
 

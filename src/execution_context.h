@@ -88,11 +88,24 @@ private:
   std::string name_;
 };
 
+class SourceUnit;
+
+class BasicParserErrorListener : public antlr4::BaseErrorListener {
+public:
+  BasicParserErrorListener(SourceUnit* su) : su_(su) {}
+  void syntaxError(antlr4::Recognizer* recognizer, antlr4::Token* offendingSymbol, size_t line,
+    size_t charPositionInLine, const std::string& msg,
+    std::exception_ptr e) override;
+  SourceUnit* su_{ nullptr };
+};
+
 class SourceUnit {
 public:
   SourceUnit(const std::string& filename, const std::string& text)
       : filename_(filename), text_(text), input_(text), lexer_(&input_), tokens_(&lexer_),
-        parser_(&tokens_) {
+        parser_(&tokens_), parserError_(this) {
+    parser_.removeErrorListeners();
+    parser_.addErrorListener(&parserError_);
     tree_ = parser_.main();
   }
 
@@ -107,6 +120,8 @@ public:
   antlr4::CommonTokenStream tokens_;
   BasicParser parser_;
   antlr4::tree::ParseTree* tree_{nullptr};
+  BasicParserErrorListener parserError_;
+  std::vector<std::string> errors;
 };
 
 class ExecutionContext {
@@ -123,18 +138,29 @@ public:
     ExecutionVisitor* visitor);
 
   bool add_source(const std::filesystem::path& path, const std::string& text) {
-    sources.insert_or_assign(path, std::make_unique<SourceUnit>(path.string(), text));
+    auto su = std::make_unique<SourceUnit>(path.string(), text);
+    if (!su->errors.empty()) {
+      errors.insert(std::end(errors), std::begin(su->errors), std::end(su->errors));
+    }
+    sources.insert_or_assign(path, std::move(su));
     return true;
   }
 
   bool add_source(const std::filesystem::path& path);
 
   // Gets the parse tree for some unit
-  antlr4::tree::ParseTree* parseTree(const std::filesystem::path& filename) {
+  std::optional<antlr4::tree::ParseTree*> parseTree(const std::filesystem::path& filename) {
     if (!wwiv::stl::contains(sources, filename)) {
-      return nullptr;
+      return std::nullopt;
     }
-    return sources.at(filename)->tree();
+    auto& su = sources.at(filename);
+    if (!su->errors.empty()) {
+      for (const auto& err : su->errors) {
+        fmt::print("ERROR: {}\r\n", err);
+      }
+      return std::nullopt;
+    }
+    return su->tree();
   }
 
   // list of modules currently imported using "IMPORT @module"
@@ -144,6 +170,7 @@ public:
   std::map<std::filesystem::path, std::unique_ptr<SourceUnit>> sources;
   Module* root{ nullptr };
   Module* module{ nullptr };
+  std::vector<std::string> errors;
 };
 
 } // namespace wwivbasic

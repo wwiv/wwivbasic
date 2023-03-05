@@ -20,33 +20,36 @@ Value::Value(const std::any& a) {
     debug = "WTF";
     return;
   }
-  value = a;
   if (a.type() == typeid(bool)) {
     type = Type::BOOLEAN;
-    debug = fmt::format("{}", std::any_cast<bool>(value));
+    value_ = std::any_cast<bool>(a);
+    debug = fmt::format("{}", std::get<bool>(value_));
   } else if (a.type() == typeid(int)) {
     type = Type::INTEGER;
-    debug = fmt::format("{}", std::any_cast<int>(value));
+    value_ = std::any_cast<int>(a);
+    debug = fmt::format("{}", std::get<int>(value_));
   } else if (a.type() == typeid(std::string)) {
     type = Type::STRING;
-    debug = fmt::format("{}", std::any_cast<std::string>(value));
+    value_ = std::any_cast<std::string>(a);
+    debug = fmt::format("{}", std::get<std::string>(value_));
   } else {
     type = Type::STRING;
-    debug = fmt::format("WTF! {}", std::any_cast<std::string>(value));
+    debug = fmt::format("WTF! {}", a.type().name());
+    value_ = std::any_cast<std::string>(a);
   }
 }
 
 bool Value::toBool() const {
   switch (type) {
   case Type::BOOLEAN: {
-    return std::any_cast<bool>(value);
+    return std::get<bool>(value_);
   } break;
   case Type::INTEGER: {
-    const auto i = std::any_cast<int>(value);
+    const auto i = std::get<int>(value_);
     return i != 0;
   } break;
   case Type::STRING: {
-    const auto s = std::any_cast<std::string>(value);
+    const auto& s = std::get<std::string>(value_);
     return s == "TRUE";
   } break;
   }
@@ -56,14 +59,14 @@ bool Value::toBool() const {
 int Value::toInt() const {
   switch (type) {
   case Type::BOOLEAN: {
-    const auto b = std::any_cast<bool>(value);
+    const auto b = std::get<bool>(value_);
     return b ? 1 : 0;
   } break;
   case Type::INTEGER: {
-    return std::any_cast<int>(value);
+    return std::get<int>(value_);
   } break;
   case Type::STRING: {
-    const auto s = std::any_cast<std::string>(value);
+    const auto s = std::get<std::string>(value_);
     try {
       return std::stoi(s);
     } catch (const std::exception&) {
@@ -77,20 +80,27 @@ int Value::toInt() const {
 std::string Value::toString() const {
   switch (type) {
   case Type::BOOLEAN: {
-    const auto b = std::any_cast<bool>(value);
+    const auto b = std::get<bool>(value_);
     return b ? "TRUE" : "FALSE";
   } break;
   case Type::INTEGER: {
-    return std::to_string(std::any_cast<int>(value));
+    return std::to_string(std::get<int>(value_));
   } break;
   case Type::STRING: {
-    return std::any_cast<std::string>(value);
+    return std::get<std::string>(value_);
   } break;
   }
   return {};
 }
 
-std::any Value::toAny() const { return value; }
+std::any Value::toAny() const { 
+  switch (type) {
+  case Type::BOOLEAN: return std::make_any<bool>(std::get<bool>(value_));
+  case Type::INTEGER: return std::make_any<int>(std::get<int>(value_));
+  case Type::STRING:return std::make_any<std::string>(std::get<std::string>(value_));
+  }
+  return {};
+}
 
 Value Value::operator+(const Value& that) const {
   switch (type) {
