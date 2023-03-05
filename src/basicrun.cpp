@@ -55,14 +55,14 @@ int main(int argc, char* argv[]) {
     });
   ec.modules.insert_or_assign("wwiv.io", io);
 
-  ec.module->native_function("PRINT", [](std::vector<Value> args) -> Value {
+  ec.root->native_function("PRINT", [](std::vector<Value> args) -> Value {
     for (const auto& arg : args) {
       std::cout << arg.toString() << " ";
     }
     std::cout << std::endl;
     return {};
   });
-  ec.module->native_function("VERSION", [](std::vector<Value> args) -> Value {
+  ec.root->native_function("VERSION", [](std::vector<Value> args) -> Value {
     return Value("1.0.2");
     });
 
