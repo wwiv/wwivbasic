@@ -89,121 +89,121 @@ std::any Value::toAny() const { return value; }
 Value Value::operator+(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return toBool() || that.toBool();
+    return Value(toBool() || that.toBool());
   case Type::INTEGER:
-    return toInt() + that.toInt();
+    return Value(toInt() + that.toInt());
   case Type::STRING:
-    return fmt::format("{}{}", toString(), that.toString());
+    return Value(fmt::format("{}{}", toString(), that.toString()));
   }
-  return {};
+  return Value(false);
 }
 
 Value Value::operator-(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return !(toBool() && that.toBool());
+    return Value(!(toBool() && that.toBool()));
   case Type::INTEGER:
-    return toInt() - that.toInt();
+    return Value(toInt() - that.toInt());
   case Type::STRING:
-    return fmt::format("{}{}", toString(), that.toString());
+    return Value(fmt::format("{}{}", toString(), that.toString()));
   }
-  return {};
+  return Value(false);
 }
 
 Value Value::operator*(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return (toBool() * that.toBool());
+    return Value(toBool() * that.toBool());
   case Type::INTEGER:
-    return toInt() * that.toInt();
+    return Value(toInt() * that.toInt());
   case Type::STRING:
-    return fmt::format("{}{}", toString(), that.toString()); // ????!
+    return Value(fmt::format("{}{}", toString(), that.toString())); // ????!
   }
-  return {};
+  return Value(false);
 }
 
 Value Value::operator/(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return false; // TODO WARN
+    return Value(false); // TODO WARN
   case Type::INTEGER:
-    return toInt() / that.toInt();
+    return Value(toInt() / that.toInt());
   case Type::STRING:
-    return fmt::format("{}{}", toString(), that.toString());
+    return Value(fmt::format("{}{}", toString(), that.toString()));
   }
-  return {};
+  return Value(false);
 }
 
 Value Value::operator%(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return false; // TODO WARN
+    return Value(false); // TODO WARN
   case Type::INTEGER:
-    return toInt() % that.toInt();
+    return Value(toInt() % that.toInt());
   case Type::STRING:
-    return fmt::format("{}{}", toString(), that.toString());
+    return Value(fmt::format("{}{}", toString(), that.toString()));
   }
-  return {};
+  return Value(false);
 }
 
 bool Value::operator<(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return toBool() < that.toBool();
+    return (toBool() < that.toBool());
   case Type::INTEGER:
-    return toInt() < that.toInt();
+    return (toInt() < that.toInt());
   case Type::STRING:
-    return toString() < that.toString();
+    return (toString() < that.toString());
   }
-  return false;
+  return (false);
 }
 
 bool Value::operator>(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return toBool() > that.toBool();
+    return (toBool() > that.toBool());
   case Type::INTEGER:
-    return toInt() > that.toInt();
+    return (toInt() > that.toInt());
   case Type::STRING:
-    return toString() > that.toString();
+    return (toString() > that.toString());
   }
-  return false;
+  return (false);
 }
 
 bool Value::operator==(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return toBool() == that.toBool();
+    return (toBool() == that.toBool());
   case Type::INTEGER:
-    return toInt() == that.toInt();
+    return (toInt() == that.toInt());
   case Type::STRING:
-    return toString() == that.toString();
+    return (toString() == that.toString());
   }
-  return false;
+  return (false);
 }
 
 Value Value::operator||(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return toBool() || that.toBool();
+    return Value(toBool() || that.toBool());
   case Type::INTEGER:
-    return toInt() || that.toInt();
+    return Value(toInt() || that.toInt());
   case Type::STRING:
-    return fmt::format("{}{}", toString(), that.toString()); // Is this right
+    return Value(fmt::format("{}{}", toString(), that.toString())); // Is this right
   }
-  return false;
+  return Value(false);
 }
 
 Value Value::operator&&(const Value& that) const {
   switch (type) {
   case Type::BOOLEAN:
-    return toBool() && that.toBool();
+    return Value(toBool() && that.toBool());
   case Type::INTEGER:
-    return toInt() && that.toInt();
+    return Value(toInt() && that.toInt());
   case Type::STRING:
-    return fmt::format("{}{}", toString(), that.toString()); // Is this right
+    return Value(fmt::format("{}{}", toString(), that.toString())); // Is this right
   }
-  return false;
+  return Value(false);
 }
 
 // Execution Context
@@ -251,7 +251,7 @@ Value Module::call(const std::string& function_name, const std::vector<Value>& p
                              ExecutionVisitor* visitor) {
   if (!contains(functions, function_name)) {
     std::cout << "Unknown function: " << function_name << std::endl;
-    return false;
+    return Value(false);
   }
 
   auto& fn = functions.at(function_name);
@@ -265,7 +265,7 @@ Value Module::call(const std::string& function_name, const std::vector<Value>& p
     std::cout << "have: " << have_count << std::endl;
     std::cout << "want: " << want_count << std::endl;
     std::cout << std::endl;
-    return false;
+    return Value(false);
   }
 
   // Create a new scope for the function body

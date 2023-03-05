@@ -18,10 +18,11 @@ public:
   Type type;
 
   Value() : value(std::string()), type(Type::STRING) {}
-  Value(bool b) : value(b), type(Type::BOOLEAN) {}
-  Value(int i) : value(i), type(Type::INTEGER) {}
-  Value(const std::string& s) : value(s), type(Type::STRING) {}
-  Value(const std::any& a);
+  explicit Value(bool b) : value(b), type(Type::BOOLEAN) {}
+  explicit Value(int i) : value(i), type(Type::INTEGER) {}
+  explicit Value(const std::string& s) : value(s), type(Type::STRING) {}
+  explicit Value(const char* s) : value(std::string(s)), type(Type::STRING) {}
+  explicit Value(const std::any& a);
 
   bool toBool() const;
   int toInt() const;

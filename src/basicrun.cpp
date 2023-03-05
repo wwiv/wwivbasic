@@ -64,6 +64,9 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl;
     return {};
   });
+  ec.module->native_function("VERSION", [](std::vector<Value> args) -> Value {
+    return Value("1.0.2");
+    });
 
   if (cmdline.barg("execute")) {
     ExecutionVisitor v(ec);

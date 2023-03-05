@@ -20,12 +20,15 @@ std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext*
   }
   const auto fn_name = ctx->procedureName()->getText();
   std::cout << "Procedure Call: " << fn_name << std::endl;
-  for (const auto param : ctx->parameterList()->expr()) {
-    std::cout << "param: " << param->getText() << std::endl;
+  std::vector<Value> params;
+  if (ctx->parameterList()) {
+    for (const auto param : ctx->parameterList()->expr()) {
+      std::cout << "param: " << param->getText() << std::endl;
+    }
+    const auto ctxparams = visit(ctx->parameterList());
+    params = std::any_cast<std::vector<Value>>(ctxparams);
   }
-  const auto params = visit(ctx->parameterList());
-  const auto v = std::any_cast<std::vector<Value>>(params);
-  auto val = ec_.call(fn_name, v, this);
+  auto val = ec_.call(fn_name, params, this);
   return val.toAny();
 }
 
