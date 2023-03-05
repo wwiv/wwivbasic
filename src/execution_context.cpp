@@ -17,18 +17,22 @@ namespace wwivbasic {
 
 Value::Value(const std::any& a) {
   if (!a.has_value()) {
+    debug = "WTF";
     return;
   }
   value = a;
   if (a.type() == typeid(bool)) {
     type = Type::BOOLEAN;
+    debug = fmt::format("{}", std::any_cast<bool>(value));
   } else if (a.type() == typeid(int)) {
     type = Type::INTEGER;
+    debug = fmt::format("{}", std::any_cast<int>(value));
   } else if (a.type() == typeid(std::string)) {
     type = Type::STRING;
+    debug = fmt::format("{}", std::any_cast<std::string>(value));
   } else {
     type = Type::STRING;
-    std::cout << "WTF";
+    debug = fmt::format("WTF! {}", std::any_cast<std::string>(value));
   }
 }
 
@@ -229,6 +233,7 @@ Value Module::var(const std::string& name) {
   for (auto it = std::rbegin(scopes); it != std::rend(scopes); it++) {
     if (contains(it->local_vars, name)) {
       const auto& var = it->local_vars.at(name);
+      fmt::print("Found Var: {}={} at scope: {}\n", name, var.value.toString(), it->fn_name);
       return var.value;
     }
   }

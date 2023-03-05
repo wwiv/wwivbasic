@@ -53,7 +53,8 @@ statements
 
 statement
     : assignmentStatement   
-    | ifStatement           
+    | ifStatement   
+    | forStatement
     | procedureCall NEWLINE
     | returnStatement
     | emptyStatement        
@@ -119,6 +120,10 @@ ifThenElseIfElseStatement
   : IF expr THEN NEWLINE? statements (ELSEIF expr THEN NEWLINE? statements)* ELSE statements ENDIF NEWLINE
 ;
 
+forStatement
+  : FOR ID EQ expr TO expr (STEP INT)? NEWLINE? statements NEXT NEWLINE
+;
+
 returnStatement
   : RETURN expr NEWLINE
 ;
@@ -127,3 +132,4 @@ id: ID;
 
 variable :   ID;
 procedureName : ID;
+

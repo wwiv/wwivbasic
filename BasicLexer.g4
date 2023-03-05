@@ -82,6 +82,11 @@ ELSE: 'ELSE';
 ELSEIF : 'ELSEIF';
 ENDIF: 'ENDIF';
 
+FOR: 'FOR';
+NEXT: 'NEXT';
+STEP: 'STEP';
+TO: 'TO';
+
 // modules
 MODULE: 'MODULE';
 IMPORT: 'IMPORT';

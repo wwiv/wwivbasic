@@ -24,9 +24,9 @@ public:
 
   std::any visitImportModule(BasicParser::ImportModuleContext* context) override;
 
-  // std::any visitStatements(BasicParser::StatementsContext* context) override;
+  std::any visitStatements(BasicParser::StatementsContext* context) override;
 
-  // std::any visitStatement(BasicParser::StatementContext* context) override;
+  std::any visitStatement(BasicParser::StatementContext* context) override;
 
   // std::any visitEmptyStatement(BasicParser::EmptyStatementContext* context)
   // override;
@@ -69,6 +69,8 @@ public:
   std::any
   visitIfThenElseIfElseStatement(BasicParser::IfThenElseIfElseStatementContext* context) override;
 
+  std::any visitForStatement(BasicParser::ForStatementContext* ctx) override;
+
   std::any visitReturnStatement(BasicParser::ReturnStatementContext* context) override;
 
   // std::any visitId(BasicParser::IdContext* context) override;
@@ -83,6 +85,8 @@ public:
 
 private:
   ExecutionContext& ec_;
+  bool return_{ false };
+  bool break_{ false };
 };
 
 } // namespace wwivbasic

@@ -7,6 +7,9 @@
 
 namespace wwivbasic {
 
+using namespace wwiv::stl;
+using namespace wwiv::strings;
+
 std::any ExecutionVisitor::visitMain(BasicParser::MainContext* context) {
   // When starting, reset the module to the root.
   ec_.module = ec_.root;
@@ -16,6 +19,7 @@ std::any ExecutionVisitor::visitMain(BasicParser::MainContext* context) {
 
 std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext* ctx) {
   if (!ctx->procedureName()) {
+    return_ = false;
     return {};
   }
   const auto fn_name = ctx->procedureName()->getText();
@@ -29,6 +33,7 @@ std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext*
     params = std::any_cast<std::vector<Value>>(ctxparams);
   }
   auto val = ec_.call(fn_name, params, this);
+  return_ = false;
   return val.toAny();
 }
 
@@ -67,6 +72,20 @@ std::any ExecutionVisitor::visitImportModule(BasicParser::ImportModuleContext* c
   return {};
 }
 
+std::any ExecutionVisitor::visitStatements(BasicParser::StatementsContext* context) {
+  std::any result;
+  for (auto* stmt : context->statement()) {
+    result = visitStatement(stmt);
+    if (return_) {
+      return result;
+    }
+  }
+  return result;
+}
+
+std::any ExecutionVisitor::visitStatement(BasicParser::StatementContext* context) {
+  return visitChildren(context);
+}
 
 std::any ExecutionVisitor::visitParens(BasicParser::ParensContext* context) {
   return visit(context->children.front());
@@ -77,7 +96,7 @@ std::any ExecutionVisitor::visitString(BasicParser::StringContext* context) {
 }
 
 std::any ExecutionVisitor::visitInt(BasicParser::IntContext* context) {
-  return wwiv::strings::to_number<int>(context->getText());
+  return to_number<int>(context->getText());
 }
 
 std::any
@@ -90,7 +109,7 @@ ExecutionVisitor::visitAssignmentStatement(BasicParser::AssignmentStatementConte
   ec_.upsert(varname, value);
   return {};
 }
-
+ 
 std::any ExecutionVisitor::visitRelation(BasicParser::RelationContext* context) {
 
   const auto op = context->relationaloperator()->getStart();
@@ -126,11 +145,15 @@ std::any ExecutionVisitor::visitRelation(BasicParser::RelationContext* context) 
 }
 
 std::any ExecutionVisitor::visitIdent(BasicParser::IdentContext* context) {
-  return ec_.var(context->getText()).toAny();
+  const auto name = context->getText();
+  auto var = ec_.var(name);
+  return var.toAny();
 }
 
 std::any ExecutionVisitor::visitProcCall(BasicParser::ProcCallContext* context) {
-  return visitChildren(context);
+  auto result = visitChildren(context);
+  return_ = false;
+  return result;
 }
 
 std::any ExecutionVisitor::visitMulDiv(BasicParser::MulDivContext* context) {
@@ -213,9 +236,45 @@ std::any ExecutionVisitor::visitIfThenElseIfElseStatement(
   return {};
 }
 
+std::any ExecutionVisitor::visitForStatement(BasicParser::ForStatementContext* ctx) {
+  auto steptoken = ctx->STEP();
+  const int step = steptoken ? to_number<int>(ctx->INT()->getText()) : 1;
+  const auto start = Value(visit(ctx->expr(0)));
+  const auto end = Value(visit(ctx->expr(1)));
+
+  const auto varname = ctx->ID()->getText();
+  const auto scope_name = fmt::format("FOR {}", varname);
+
+  {
+    Scope fnscope(scope_name);
+    fnscope.local_vars.insert_or_assign(varname, Var(varname, start));
+    // Put the scope on top fo the stack
+    ec_.module->scopes.push_back(fnscope);
+  }
+  auto& var = ec_.module->scopes.back().local_vars.at(varname);
+  // TODO(rushfan): May need to change to a while loop.
+  // TODO(rushfan): Need to figure out how to add RETURN and BREAK support here.
+  for (int current = start.toInt(); current != end.toInt(); current += step) {
+    var.value.set(current);
+    visit(ctx->statements());
+    current = var.value.toInt();
+  }
+  {
+    // Handle last loop where current == end;
+    var.value.set(end.toInt());
+    visit(ctx->statements());
+  }
+
+
+  // remove latest scope.
+  ec_.module->scopes.pop_back();
+  return {};
+}
+
 std::any ExecutionVisitor::visitReturnStatement(BasicParser::ReturnStatementContext* context) {
   auto result = visit(context->expr());
   std::cout << "RETURN: " << Value(result).toString() << std::endl;
+  return_ = true;
   return result;
 }
 
