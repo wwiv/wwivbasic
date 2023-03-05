@@ -91,8 +91,8 @@ ExecutionVisitor::visitAssignmentStatement(BasicParser::AssignmentStatementConte
   return {};
 }
 
-std::any
-ExecutionVisitor::visitRelationalExpression(BasicParser::RelationalExpressionContext* context) {
+std::any ExecutionVisitor::visitRelation(BasicParser::RelationContext* context) {
+
   const auto op = context->relationaloperator()->getStart();
   Value left(visit(context->expr(0)));
   Value right(visit(context->expr(1)));
@@ -183,7 +183,7 @@ std::any ExecutionVisitor::visitAddSub(BasicParser::AddSubContext* context) {
 }
 
 std::any ExecutionVisitor::visitIfThenStatement(BasicParser::IfThenStatementContext* context) {
-  if (const auto result = std::any_cast<bool>(visit(context->relationalExpression())); !result) {
+  if (const auto result = std::any_cast<bool>(visit(context->expr())); !result) {
     return {};
   }
   return visit(context->statements());
@@ -191,7 +191,7 @@ std::any ExecutionVisitor::visitIfThenStatement(BasicParser::IfThenStatementCont
 
 std::any
 ExecutionVisitor::visitIfThenElseStatement(BasicParser::IfThenElseStatementContext* context) {
-  if (const auto result = std::any_cast<bool>(visit(context->relationalExpression()))) {
+  if (const auto result = std::any_cast<bool>(visit(context->expr()))) {
     return visit(context->statements(0));
   } else {
     return visit(context->statements(1));
@@ -201,8 +201,8 @@ ExecutionVisitor::visitIfThenElseStatement(BasicParser::IfThenElseStatementConte
 std::any ExecutionVisitor::visitIfThenElseIfElseStatement(
     BasicParser::IfThenElseIfElseStatementContext* context) {
   // Visit the IF and any ELSEIF clauses (that have relation expressions)
-  for (int i = 0; i < context->relationalExpression().size(); i++) {
-    if (const auto result = std::any_cast<bool>(visit(context->relationalExpression(i)))) {
+  for (int i = 0; i < context->expr().size(); i++) {
+    if (const auto result = std::any_cast<bool>(visit(context->expr(i)))) {
       return visit(context->statements(i));
     }
   }

@@ -31,7 +31,7 @@ public:
   // std::any visitEmptyStatement(BasicParser::EmptyStatementContext* context)
   // override;
 
-  std::any visitRelationalExpression(BasicParser::RelationalExpressionContext* context) override;
+  std::any visitRelation(BasicParser::RelationContext* context) override;
 
   std::any visitIdent(BasicParser::IdentContext* context) override;
 

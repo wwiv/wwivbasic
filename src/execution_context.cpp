@@ -2,6 +2,7 @@
 #include "core/textfile.h"
 #include "core/stl.h"
 #include "executor.h"
+#include "utils.h"
 #include "fmt/format.h"
 
 #include <any>
@@ -310,16 +311,6 @@ ExecutionContext::ExecutionContext(const std::filesystem::path& path) : Executio
   add_source(path);
 }
 
-
-// Splits a package off from identifier, i.e "foo.bar.baz" -> {"foo.bar", "baz"}
-std::tuple<std::string, std::string> split_package_from_id(const std::string& s) {
-  if (const auto idx = s.rfind('.'); idx != std::string::npos) {
-    const auto pkg = s.substr(0, idx);
-    const auto id = s.substr(idx + 1);
-    return std::make_tuple(pkg, id);
-  }
-  return std::make_tuple("", s);
-}
 
 void ExecutionContext::upsert(const std::string& name, const Value& value) {
   

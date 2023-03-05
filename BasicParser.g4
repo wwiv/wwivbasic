@@ -62,17 +62,14 @@ statement
 emptyStatement : NEWLINE;
 
 
-expr: expr multiplicativeoperator expr  # MulDiv
+expr: expr relationaloperator expr      # Relation
+    | expr multiplicativeoperator expr  # MulDiv
     | expr additiveoperator expr        # AddSub
     | procedureCall                     # ProcCall
     | LPAREN expr RPAREN                # Parens
     | identifier = id                   # Ident
     | INT                               # Int
     | STRING                            # String
-;
-
-relationalExpression 
-  : expr relationaloperator expr
 ;
 
 additiveoperator
@@ -111,15 +108,15 @@ ifStatement
 ;
 
 ifThenStatement
-  : IF relationalExpression THEN NEWLINE? statements ENDIF NEWLINE
+  : IF expr THEN NEWLINE? statements ENDIF NEWLINE
 ;
 
 ifThenElseStatement
-  : IF relationalExpression THEN NEWLINE? statements ELSE statements NEWLINE? ENDIF NEWLINE
+  : IF expr THEN NEWLINE? statements ELSE statements NEWLINE? ENDIF NEWLINE
 ;
 
 ifThenElseIfElseStatement
-  : IF relationalExpression THEN NEWLINE? statements (ELSEIF relationalExpression THEN NEWLINE? statements)* ELSE statements ENDIF NEWLINE
+  : IF expr THEN NEWLINE? statements (ELSEIF expr THEN NEWLINE? statements)* ELSE statements ENDIF NEWLINE
 ;
 
 returnStatement
