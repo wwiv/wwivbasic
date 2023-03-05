@@ -65,6 +65,7 @@ LPAREN: '(';
 RPAREN: ')';
 COMMA: ',';
 DOT: '.';
+AT: '@';
  
 
 // KEYWORDS
@@ -81,9 +82,12 @@ ELSE: 'ELSE';
 ELSEIF : 'ELSEIF';
 ENDIF: 'ENDIF';
 
+// modules
+MODULE: 'MODULE';
+IMPORT: 'IMPORT';
 
 STRING options { caseInsensitive=false; } : '"' .*? '"';
-ID: LETTER (LETTER | '0'..'9')*;
+ID: LETTER (LETTER | '.' | '0'..'9')*;
 fragment LETTER : [A-Z];
 
 Comment : '\'' ~[\r\n]* '\r'? '\n' -> channel(CommentsChannel);

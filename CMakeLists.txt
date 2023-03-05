@@ -42,6 +42,7 @@ add_library(wwivbasic_interpreter
             "src/execution_context.cpp"
             "src/executor.cpp"
             "src/function_def_visitor.cpp"
+            "src/utils.cpp"
             ${ANTLR4_SRC_FILES_wwivbasic_lexer} 
             ${ANTLR4_SRC_FILES_wwivbasic_parser}
 )

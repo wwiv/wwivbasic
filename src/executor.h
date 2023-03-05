@@ -9,10 +9,8 @@ class ExecutionVisitor : public BasicParserBaseVisitor {
 public:
   ExecutionVisitor(ExecutionContext& ec) : ec_(ec) {}
 
-  /**
-   * Visit parse trees produced by BasicParser.
-   */
-  // std::any visitMain(BasicParser::MainContext* context) override;
+
+  std::any visitMain(BasicParser::MainContext* context) override;
 
   std::any visitProcedureCall(BasicParser::ProcedureCallContext* context) override;
 
@@ -23,6 +21,8 @@ public:
   // std::any
   // visitParameterDefinitionList(BasicParser::ParameterDefinitionListContext*
   // context) override;
+
+  std::any visitImportModule(BasicParser::ImportModuleContext* context) override;
 
   // std::any visitStatements(BasicParser::StatementsContext* context) override;
 

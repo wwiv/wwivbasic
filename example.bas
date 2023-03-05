@@ -1,3 +1,6 @@
+import @wwiv.io
+import "common.bas"
+
 def foo(a, b)
 Return a + b
 enddef

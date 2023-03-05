@@ -25,12 +25,11 @@ int main(int argc, char* argv[]) {
   cmdline.add_argument(BooleanCommandLineArgument(
     "execute", 'e', "Execute the script", true));
   if (!cmdline.Parse()) {
-    fmt::print("{}", cmdline.GetHelp());
     return 2;
   }
 
   if (cmdline.remaining().empty()) {
-    fmt::print("Usage: \n\tbasicrun <FILENAME.BAS>\n\n");
+    fmt::print("{}", cmdline.GetHelp());
     return 2;
   }
   const auto& filename = cmdline.remaining().front();
@@ -58,7 +57,7 @@ int main(int argc, char* argv[]) {
   wwivbasic::FunctionDefVisitor fd(ec);
   fd.visit(tree);
 
-  ec.native_function("PRINT", [](std::vector<Value> args) -> Value {
+  ec.module->native_function("PRINT", [](std::vector<Value> args) -> Value {
     for (const auto& arg : args) {
       std::cout << arg.toString() << " ";
     }

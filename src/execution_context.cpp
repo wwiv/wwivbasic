@@ -208,12 +208,8 @@ Value Value::operator&&(const Value& that) const {
 
 // Execution Context
 
-ExecutionContext::ExecutionContext() {
-  // Start off with only global scope
-  scopes.emplace_back("GLOBAL");
-}
 
-void ExecutionContext::upsert(const std::string& name, const Value& value) {
+void Module::upsert(const std::string& name, const Value& value) {
   for (auto it = std::rbegin(scopes); it != std::rend(scopes); it++) {
     if (contains(it->local_vars, name)) {
       auto& var = it->local_vars.at(name);
@@ -227,7 +223,7 @@ void ExecutionContext::upsert(const std::string& name, const Value& value) {
   scope.local_vars.emplace(name, Var(name, value));
 }
 
-Value ExecutionContext::var(const std::string& name) {
+Value Module::var(const std::string& name) {
   for (auto it = std::rbegin(scopes); it != std::rend(scopes); it++) {
     if (contains(it->local_vars, name)) {
       const auto& var = it->local_vars.at(name);
@@ -238,7 +234,20 @@ Value ExecutionContext::var(const std::string& name) {
   return {};
 }
 
-Value ExecutionContext::call(const std::string& function_name, const std::vector<Value>& params,
+bool Module::has_var(const std::string& name) const {
+  for (auto it = std::rbegin(scopes); it != std::rend(scopes); it++) {
+    if (contains(it->local_vars, name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Module::has_fn(const std::string& name) const {
+  return contains(functions, name);
+}
+
+Value Module::call(const std::string& function_name, const std::vector<Value>& params,
                              ExecutionVisitor* visitor) {
   if (!contains(functions, function_name)) {
     std::cout << "Unknown function: " << function_name << std::endl;
@@ -287,6 +296,87 @@ Value ExecutionContext::call(const std::string& function_name, const std::vector
   // remove latest scope.
   scopes.pop_back();
   return result;
+}
+
+ExecutionContext::ExecutionContext() {
+  // Start off with only global scope
+  modules.emplace("", Module("") );
+  modules.at("").scopes.emplace_back("<GLOBAL>");
+  root = module = &modules.at("");
+}
+
+// Splits a package off from identifier, i.e "foo.bar.baz" -> {"foo.bar", "baz"}
+std::tuple<std::string, std::string> split_package_from_id(const std::string& s) {
+  if (const auto idx = s.rfind('.'); idx != std::string::npos) {
+    const auto pkg = s.substr(0, idx);
+    const auto id = s.substr(idx + 1);
+    return std::make_tuple(pkg, id);
+  }
+  return std::make_tuple("", s);
+}
+
+void ExecutionContext::upsert(const std::string& name, const Value& value) {
+  
+  if (const auto [pkg, id] = split_package_from_id(name); !pkg.empty()) {
+    // fully qualified
+    if (contains(modules, pkg)) {
+      // we have a module.
+      modules.at(pkg).upsert(id, value);
+      return;
+    }
+    // TODO(rushfan): Error that we don't have a module loaded for this.
+    return;
+  }
+
+  // Not fully qualified case.
+  if (!module->has_var(name) && root->has_var(name)) {
+    // No existing variable in current module, but one at the root, update it.
+    root->upsert(name, value);
+  }
+  else {
+    // Add it to the current module.
+    module->upsert(name, value);
+  }
+}
+
+Value ExecutionContext::var(const std::string& name) {
+  
+  if (const auto [pkg, id] = split_package_from_id(name); !pkg.empty()) {
+    // fully qualified
+    if (contains(modules, pkg)) {
+      // we have a module.
+      return modules.at(pkg).var(id);
+    }
+    // TODO(rushfan): Error that we don't have a module loaded for this.
+    return Value(false);
+  }
+  // Not fully qualified case.
+  if (!module->has_var(name) && root->has_var(name)) {
+    // No existing variable in current module, but one at the root, update it.
+    return root->var(name);
+  }
+  return module->var(name);
+}
+
+Value ExecutionContext::call(const std::string& function_name, const std::vector<Value>& params,
+                             ExecutionVisitor* visitor) {
+  
+  if (const auto [pkg, id] = split_package_from_id(function_name); !pkg.empty()) {
+    // fully qualified
+    if (contains(modules, pkg)) {
+      // we have a module.
+      return modules.at(pkg).call(id, params, visitor);
+    }
+    // TODO(rushfan): Error that we don't have a module loaded for this.
+    return Value(false);
+  }
+  // Not fully qualified case.
+  if (!module->has_fn(function_name) && root->has_fn(function_name)) {
+    // No existing variable in current module, but one at the root, update it.
+    return root->call(function_name, params, visitor);
+  }
+  return module->call(function_name, params, visitor);
+
 }
 
 } // namespace wwivbasic

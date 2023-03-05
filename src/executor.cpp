@@ -1,10 +1,18 @@
 #include "executor.h"
+#include "utils.h"
 #include "BasicLexer.h"
 #include "core/stl.h"
 #include "core/strings.h"
 #include "fmt/format.h"
 
 namespace wwivbasic {
+
+std::any ExecutionVisitor::visitMain(BasicParser::MainContext* context) {
+  // When starting, reset the module to the root.
+  ec_.module = ec_.root;
+
+  return visitChildren(context);
+}
 
 std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext* ctx) {
   if (!ctx->procedureName()) {
@@ -38,14 +46,31 @@ ExecutionVisitor::visitProcedureDefinition(BasicParser::ProcedureDefinitionConte
   return {};
 }
 
+std::any ExecutionVisitor::visitImportModule(BasicParser::ImportModuleContext* context) {
+  if (context->ID()) {
+    // import package
+    auto modulename = context->ID()->getText();
+    fmt::print("Import module: '{}'\n", modulename);
+  }
+  else if (context->STRING()) {
+    auto fn = remove_quotes(context->STRING()->getText());
+    fmt::print("Import file: '{}'\n", fn);
+  }
+  else {
+    fmt::print("Malformed import statement: '{}'\n", context->getText());
+
+  }
+
+  return {};
+}
+
+
 std::any ExecutionVisitor::visitParens(BasicParser::ParensContext* context) {
   return visit(context->children.front());
 }
 
 std::any ExecutionVisitor::visitString(BasicParser::StringContext* context) {
-  auto s = context->getText();
-  s.pop_back();
-  return (s.size() <= 1) ? "" : s.substr(1);
+  return remove_quotes(context->getText());
 }
 
 std::any ExecutionVisitor::visitInt(BasicParser::IntContext* context) {
@@ -57,6 +82,8 @@ ExecutionVisitor::visitAssignmentStatement(BasicParser::AssignmentStatementConte
   const auto varname = context->variable()->getText();
   const auto value = Value(visit(context->expr()));
   std::cout << "ASSIGN: " << varname << " = " << value.toString() << std::endl;
+  //TOOD(rushfan): Once we had "MODULE modulename" support, need to load these
+  // into the RIGHT module.
   ec_.upsert(varname, value);
   return {};
 }

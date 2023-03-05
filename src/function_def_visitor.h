@@ -23,8 +23,11 @@ public:
   std::any
   visitParameterDefinitionList(BasicParser::ParameterDefinitionListContext* context) override;
 
+  std::any visitModuleDefinition(BasicParser::ModuleDefinitionContext* context) override;
+
 private:
   ExecutionContext& ec_;
+  std::string module{};
 };
 
 } // namespace wwivbasic

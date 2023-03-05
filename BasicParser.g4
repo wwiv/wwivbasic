@@ -14,7 +14,12 @@ options {
 
 // Actual grammar start.
 main
-  : (statement | procedureDefinition)+ EOF
+  : (
+    statement 
+    | procedureDefinition
+    | importModule
+    | moduleDefinition
+   )+ EOF
 ;
 
 procedureCall
@@ -33,6 +38,14 @@ parameterDefinitionList
   : param = id (COMMA param = id)*
 ;
 
+importModule
+  : IMPORT AT ID  NEWLINE
+  | IMPORT STRING NEWLINE
+;
+
+moduleDefinition
+  : MODULE STRING NEWLINE
+;
 
 statements
   : statement*
@@ -117,4 +130,3 @@ id: ID;
 
 variable :   ID;
 procedureName : ID;
-packageName : (ID DOT);

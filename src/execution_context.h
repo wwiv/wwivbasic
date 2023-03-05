@@ -82,19 +82,23 @@ public:
 
 class ExecutionVisitor;
 
-class ExecutionContext {
+class Module {
 public:
-  ExecutionContext();
+  Module(const std::string& name) : name_(name) {}
 
-  // Creates a variable at the top scope or assigns a value to an existing
-  // variable.
+  // Creates a variable at the top scope or updates existing variable.
   void upsert(const std::string& name, const Value& value);
+  // Gets the value of a variable.
   Value var(const std::string& name);
+  // Calls a function
   Value call(const std::string& function_name, const std::vector<Value>& params,
-             ExecutionVisitor* visitor);
+    ExecutionVisitor* visitor);
+
+  bool has_var(const std::string& name) const;
+  bool has_fn(const std::string& name) const;
 
   void native_function(const std::string& name, const basic_function_fn& fn,
-                       const std::vector<std::string>& params) {
+    const std::vector<std::string>& params) {
     functions.insert_or_assign(name, BasicFunction(name, fn, params));
   }
 
@@ -104,8 +108,31 @@ public:
   }
 
   std::deque<Scope> scopes;
-  std::map<std::string, Var> global_vars;
   std::map<std::string, BasicFunction> functions;
+
+private:
+  const std::string name_;
+};
+
+
+class ExecutionContext {
+public:
+  ExecutionContext();
+
+  // Creates a variable at the top scope or updates existing variable.
+  void upsert(const std::string& name, const Value& value);
+  // Gets the value of a variable.
+  Value var(const std::string& name);
+  // Calls a function
+  Value call(const std::string& function_name, const std::vector<Value>& params,
+    ExecutionVisitor* visitor);
+
+  // list of modules currently imported using "IMPORT @module"
+  std::set<std::string> imported_modules;
+  // All registered modules
+  std::map<std::string, Module> modules;
+  Module* root{ nullptr };
+  Module* module{ nullptr };
 };
 
 } // namespace wwivbasic
