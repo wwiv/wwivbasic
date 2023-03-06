@@ -45,7 +45,7 @@ int main(int argc, const char* argv[]) {
 
   std::cout << std::endl << std::endl;
 
-  wwivbasic::ExecutionContext execution_context;
+  wwivbasic::Context execution_context;
   wwivbasic::FunctionDefVisitor fd(execution_context);
   fd.visit(tree);
 

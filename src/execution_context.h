@@ -59,30 +59,6 @@ public:
     module->native_functionl(#func, make_basic_fn(func));                                           \
   } while (0)
 
-template<class F>
-struct function_traits;
-
-// function pointer
-template<class R, class... Args>
-struct function_traits<R(*)(Args...)> : public function_traits<R(Args...)>
-{};
-
-template<class R, class... Args>
-struct function_traits<R(Args...)>
-{
-  using return_type = R;
-
-  static constexpr std::size_t arity = sizeof...(Args);
-
-  template <std::size_t N>
-  struct argument
-  {
-    static_assert(N < arity, "error: invalid parameter index.");
-    using type = typename std::tuple_element<N, std::tuple<Args...>>::type;
-  };
-};
-
-
 template<class T>
 struct AsFunction
   : public AsFunction<decltype(&T::operator())>
@@ -97,7 +73,6 @@ template<class ReturnType, class... Args>
 struct AsFunction<ReturnType(*)(Args...)> {
   using type = std::function<ReturnType(Args...)>;
 };
-
 
 template<class Class, class ReturnType, class... Args>
 struct AsFunction<ReturnType(Class::*)(Args...) const> {
@@ -114,8 +89,7 @@ template<typename F, typename R, typename P1>
 basic_function_fn make_basic_fn_(std::function<R(P1)> f) {
   basic_function_fn f1 = [=](std::vector<Value> params) -> Value {
     if (params.size() < 1) {
-      // ERROR
-      return Value(false);
+      return Value(false); // ERROR
     }
     return Value(f(params.at(0).get<P1>()));
   };
@@ -124,11 +98,9 @@ basic_function_fn make_basic_fn_(std::function<R(P1)> f) {
 
 template<typename F, typename R, typename P1, typename P2>
 basic_function_fn make_basic_fn_(std::function<R(P1, P2)> f) {
-  using traits = function_traits<F>;
-  //std::cout << traits::arity;
   basic_function_fn f1 = [=](std::vector<Value> params) -> Value {
     if (params.size() < 2) {
-      return Value(false);
+      return Value(false); // ERROR
     }
     return Value(f(params.at(0).get<P1>(), params.at(1).get<P2>()));
   };
@@ -224,10 +196,10 @@ public:
   std::vector<std::string> errors;
 };
 
-class ExecutionContext {
+class Context {
 public:
-  ExecutionContext(const std::filesystem::path& path);
-  ExecutionContext();
+  Context(const std::filesystem::path& path);
+  Context();
 
   // Creates a variable at the top scope or updates existing variable.
   void upsert(const std::string& name, const Value& value);

@@ -7,7 +7,7 @@ namespace wwivbasic {
 
 class ExecutionVisitor : public BasicParserBaseVisitor {
 public:
-  ExecutionVisitor(ExecutionContext& ec) : ec_(ec) {}
+  ExecutionVisitor(Context& ec) : ec_(ec) {}
 
 
   std::any visitMain(BasicParser::MainContext* context) override;
@@ -86,7 +86,7 @@ public:
   // override;
 
 private:
-  ExecutionContext& ec_;
+  Context& ec_;
   bool return_{ false };
   bool break_{ false };
 };

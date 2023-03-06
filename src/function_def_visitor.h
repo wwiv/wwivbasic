@@ -16,7 +16,7 @@ namespace wwivbasic {
  */
 class FunctionDefVisitor : public BasicParserBaseVisitor {
 public:
-  FunctionDefVisitor(ExecutionContext& ec) : ec_(ec) {}
+  FunctionDefVisitor(Context& ec) : ec_(ec) {}
 
   std::any visitProcedureDefinition(BasicParser::ProcedureDefinitionContext* context) override;
 
@@ -26,7 +26,7 @@ public:
   std::any visitModuleDefinition(BasicParser::ModuleDefinitionContext* context) override;
 
 private:
-  ExecutionContext& ec_;
+  Context& ec_;
   std::string module{};
 };
 

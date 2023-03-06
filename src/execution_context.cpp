@@ -105,14 +105,24 @@ Value Module::call(const std::string& function_name, const std::vector<Value>& p
   return result;
 }
 
-ExecutionContext::ExecutionContext() {
+Context::Context() {
   // Start off with only global scope
   modules.emplace("", Module("") );
   modules.at("").scopes.emplace_back("<GLOBAL>");
   root = module = &modules.at("");
+
+  // Load default modules.
+  // Numeric
+  root->native_function("ABS", [](int n) -> int { return n < 0 ? -n : n; });
+
+  //string
+  root->native_function("ASC", [](std::string s) -> int {
+    return s.empty() ? 0 : static_cast<int>(s.front());
+  });
+
 }
 
-ExecutionContext::ExecutionContext(const std::filesystem::path& path) : ExecutionContext() {
+Context::Context(const std::filesystem::path& path) : Context() {
   add_source(path);
 }
 
@@ -123,7 +133,7 @@ void BasicParserErrorListener::syntaxError(antlr4::Recognizer* recognizer, antlr
 }
 
 
-void ExecutionContext::upsert(const std::string& name, const Value& value) {
+void Context::upsert(const std::string& name, const Value& value) {
   
   if (const auto [pkg, id] = split_package_from_id(name); !pkg.empty()) {
     // fully qualified
@@ -147,7 +157,7 @@ void ExecutionContext::upsert(const std::string& name, const Value& value) {
   }
 }
 
-Value ExecutionContext::var(const std::string& name) {
+Value Context::var(const std::string& name) {
   
   if (const auto [pkg, id] = split_package_from_id(name); !pkg.empty()) {
     // fully qualified
@@ -166,7 +176,7 @@ Value ExecutionContext::var(const std::string& name) {
   return module->var(name);
 }
 
-Value ExecutionContext::call(const std::string& function_name, const std::vector<Value>& params,
+Value Context::call(const std::string& function_name, const std::vector<Value>& params,
                              ExecutionVisitor* visitor) {
   
   if (const auto [pkg, id] = split_package_from_id(function_name); !pkg.empty()) {
@@ -187,7 +197,7 @@ Value ExecutionContext::call(const std::string& function_name, const std::vector
 
 }
 
-bool ExecutionContext::add_source(const std::filesystem::path& path) {
+bool Context::add_source(const std::filesystem::path& path) {
   TextFile f(path, "rb");
   if (!f) {
     const auto err = fmt::format("Unable to open file: {}", path.string());

@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
   }
 
   const auto& filename = cmdline.remaining().front();
-  wwivbasic::ExecutionContext ec(filename);
+  wwivbasic::Context ec(filename);
   auto tree = ec.parseTree(filename);
 
   if (!tree) {
@@ -82,7 +82,10 @@ int main(int argc, char* argv[]) {
     return {};
   });
   REGISTER_NATIVE(ec.root, easy);
-  ec.root->native_function("EASY2", easy2);
+  REGISTER_NATIVE(ec.root, easy2);
+  ec.root->native_function("EASY3", [](int a, int b) -> int {
+    return a + b;
+    });
   ec.root->native_functionl("PRINT", [](std::vector<Value> args) -> Value {
     for (const auto& arg : args) {
       std::cout << arg.toString() << " ";
