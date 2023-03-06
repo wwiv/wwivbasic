@@ -49,7 +49,7 @@ int main(int argc, const char* argv[]) {
   wwivbasic::FunctionDefVisitor fd(execution_context);
   fd.visit(tree);
 
-  execution_context.module->native_function("PRINT", [](std::vector<Value> args) -> Value {
+  execution_context.module->native_functionl("PRINT", [](std::vector<Value> args) -> Value {
     for (const auto& arg : args) {
       std::cout << arg.toString() << " ";
     }

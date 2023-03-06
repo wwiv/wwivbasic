@@ -54,11 +54,10 @@ public:
   std::vector<std::string> params;
 };
 
-
-//template<typename F, typename R = typename std::result_of<F(T)>::type>
-//TMaybe<R> maybe_if(const TMaybe<T>& m, F f) {
-//  return (m.value != nullptr) ? TMaybe<R>(f(m.value)) : TMaybe();
-//}
+#define REGISTER_NATIVE(module, func)                                                              \
+  do {                                                                                             \
+    module->native_functionl(#func, make_basic_fn(func));                                           \
+  } while (0)
 
 template<class F>
 struct function_traits;
@@ -108,12 +107,10 @@ struct AsFunction<ReturnType(Class::*)(Args...) const> {
 // makes various types of functions into a std::function
 template<class F>
 auto as_fn(F f) -> typename AsFunction<F>::type {
-  using traits = function_traits<decltype(f)>;
-  fmt::print("Has {} args\n", traits::arity);
-    return { f };
+  return { f };
 }
 
-template<typename R, typename P1>
+template<typename F, typename R, typename P1>
 basic_function_fn make_basic_fn_(std::function<R(P1)> f) {
   basic_function_fn f1 = [=](std::vector<Value> params) -> Value {
     if (params.size() < 1) {
@@ -125,17 +122,24 @@ basic_function_fn make_basic_fn_(std::function<R(P1)> f) {
   return f1;
 }
 
-//template<typename R, typename P1>
-//basic_function_fn make_basic_fn(R(*)(P1) f) {
-//  basic_function_fn f1 = [=](std::vector<Value> params) -> Value {
-//    if (params.size() < 1) {
-//      // ERROR
-//      return Value(false);
-//    }
-//    return Value(f(params.at(0).get<P1>()));
-//  };
-//  return f1;
-//}
+template<typename F, typename R, typename P1, typename P2>
+basic_function_fn make_basic_fn_(std::function<R(P1, P2)> f) {
+  using traits = function_traits<F>;
+  //std::cout << traits::arity;
+  basic_function_fn f1 = [=](std::vector<Value> params) -> Value {
+    if (params.size() < 2) {
+      return Value(false);
+    }
+    return Value(f(params.at(0).get<P1>(), params.at(1).get<P2>()));
+  };
+  return f1;
+}
+
+template<class F>
+basic_function_fn make_basic_fn(F f) {
+  return make_basic_fn_<F>(as_fn(std::forward<F>(f)));
+}
+
 
 class ExecutionVisitor;
 
@@ -154,15 +158,28 @@ public:
   bool has_var(const std::string& name) const;
   bool has_fn(const std::string& name) const;
 
-  void native_function(const std::string& name, const basic_function_fn& fn,
+  void native_functionl(const std::string& name, const basic_function_fn& fn,
     const std::vector<std::string>& params) {
     functions.insert_or_assign(name, BasicFunction(name, fn, params));
   }
 
-  void native_function(const std::string& name, const basic_function_fn& fn) {
+  void native_functionl(const std::string& name, const basic_function_fn& fn) {
     std::vector<std::string> v;
-    native_function(name, fn, v);
+    native_functionl(name, fn, v);
   }
+
+  template<class F>
+  void native_function(const std::string& name, F f, const std::vector<std::string>& params) {
+    functions.insert_or_assign(name, BasicFunction(name, make_basic_fn_<F>(as_fn(std::forward<F>(f))), params));
+  }
+
+  template<class F>
+  void native_function(const std::string& name, F f) {
+    std::vector<std::string> params;
+    //native_functionl(name, make_basic_fn_<F>(as_fn(std::forward<F>(f))), params);
+    functions.insert_or_assign(name, BasicFunction(name, make_basic_fn_<F>(as_fn(std::forward<F>(f))), params));
+  }
+
 
   std::deque<Scope> scopes;
   std::map<std::string, BasicFunction, wwiv::stl::ci_less> functions;

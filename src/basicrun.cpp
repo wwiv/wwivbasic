@@ -24,6 +24,11 @@ std::string easy(std::string s) {
   return {};
 }
 
+std::string easy2(std::string s, std::string s1) {
+  fmt::print("easy2: {} {}\n", s, s1);
+  return {};
+}
+
 int main(int argc, char* argv[]) {
   LoggerConfig config;
 
@@ -61,7 +66,7 @@ int main(int argc, char* argv[]) {
   fd.visit(tree.value());
 
   Module io("wwiv.io");
-  io.native_function("PRINT", [](std::vector<Value> args) -> Value {
+  io.native_functionl("PRINT", [](std::vector<Value> args) -> Value {
     if (!args.empty()) {
       fmt::print("WWIV.IO: {}\r\n", args.front().toString());
     }
@@ -69,18 +74,16 @@ int main(int argc, char* argv[]) {
     });
   ec.modules.insert_or_assign("wwiv.io", io);
 
-  ec.root->native_function("PRINT", [](std::vector<Value> args) -> Value {
+  ec.root->native_functionl("PRINT", [](std::vector<Value> args) -> Value {
     for (const auto& arg : args) {
       std::cout << arg.toString() << " ";
     }
     std::cout << std::endl;
     return {};
   });
-  std::function<std::string(std::string)> x = easy;
-  //ec.root->native_function(std::string("EASY"), make_basic_fn<std::string>([](std::string s) -> std::string { return easy(s); }));
-  using namespace std::placeholders;
-  ec.root->native_function("EASY", make_basic_fn_(as_fn(easy)));
-  ec.root->native_function("PRINT", [](std::vector<Value> args) -> Value {
+  REGISTER_NATIVE(ec.root, easy);
+  ec.root->native_function("EASY2", easy2);
+  ec.root->native_functionl("PRINT", [](std::vector<Value> args) -> Value {
     for (const auto& arg : args) {
       std::cout << arg.toString() << " ";
     }
