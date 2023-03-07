@@ -2,7 +2,7 @@
 #include "BasicParser.h"
 #include "BasicParserBaseVisitor.h"
 #include "antlr4-runtime.h"
-#include "execution_context.h"
+#include "context.h"
 #include "executor.h"
 #include "fmt/format.h"
 #include "function_def_visitor.h"
@@ -45,11 +45,11 @@ int main(int argc, const char* argv[]) {
 
   std::cout << std::endl << std::endl;
 
-  wwivbasic::Context execution_context;
-  wwivbasic::FunctionDefVisitor fd(execution_context);
+  wwivbasic::Context context;
+  wwivbasic::FunctionDefVisitor fd(context);
   fd.visit(tree);
 
-  execution_context.module->native_functionl("PRINT", [](std::vector<Value> args) -> Value {
+  context.module->native_functionl("PRINT", [](std::vector<Value> args) -> Value {
     for (const auto& arg : args) {
       std::cout << arg.toString() << " ";
     }
@@ -57,7 +57,7 @@ int main(int argc, const char* argv[]) {
     return {};
   });
 
-  ExecutionVisitor v(execution_context);
+  ExecutionVisitor v(context);
   v.visit(tree);
 
   return 0;

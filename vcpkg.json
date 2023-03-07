@@ -6,6 +6,7 @@
     "cereal",
     "cpp-httplib",
     "nlohmann-json",
-    "fmt"
+    "fmt",
+    "gtest"
   ]
 }

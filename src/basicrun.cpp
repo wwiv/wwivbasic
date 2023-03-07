@@ -5,7 +5,7 @@
 #include "core/command_line.h"
 #include "core/log.h"
 #include "core/textfile.h"
-#include "execution_context.h"
+#include "context.h"
 #include "executor.h"
 #include "fmt/format.h"
 #include "function_def_visitor.h"

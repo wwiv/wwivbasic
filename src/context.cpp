@@ -1,9 +1,12 @@
-#include "execution_context.h"
+#include "context.h"
 #include "core/textfile.h"
 #include "core/stl.h"
 #include "executor.h"
 #include "utils.h"
 #include "fmt/format.h"
+#include "stdlib/common.h"
+#include "stdlib/numbers.h"
+#include "stdlib/strings.h"
 
 #include <any>
 #include <map>
@@ -112,14 +115,21 @@ Context::Context() {
   root = module = &modules.at("");
 
   // Load default modules.
+
   // Numeric
-  root->native_function("ABS", [](int n) -> int { return n < 0 ? -n : n; });
+  REGISTER_NATIVE(root, stdlib::abs);
+
+  // common
+  REGISTER_NATIVEL(root, stdlib::len);
+  REGISTER_NATIVEL(root, stdlib::val);
+
 
   //string
-  root->native_function("ASC", [](std::string s) -> int {
-    return s.empty() ? 0 : static_cast<int>(s.front());
-  });
-
+  REGISTER_NATIVE(root, stdlib::asc);
+  REGISTER_NATIVE(root, stdlib::chr);
+  REGISTER_NATIVE(root, stdlib::left);
+  REGISTER_NATIVE(root, stdlib::right);
+  REGISTER_NATIVEL(root, stdlib::mid);
 }
 
 Context::Context(const std::filesystem::path& path) : Context() {

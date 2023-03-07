@@ -58,6 +58,10 @@ public:
   do {                                                                                             \
     module->native_functionl(#func, make_basic_fn(func));                                           \
   } while (0)
+#define REGISTER_NATIVEL(module, func)                                                              \
+  do {                                                                                             \
+    module->native_functionl(#func, func);                                           \
+  } while (0)
 
 template<class T>
 struct AsFunction

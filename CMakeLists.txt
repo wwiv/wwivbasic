@@ -6,8 +6,12 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(antlr4-runtime REQUIRED)
 find_package(antlr4-generator REQUIRED)
 find_package(fmt CONFIG REQUIRED)
+enable_testing()
+find_package(GTest CONFIG REQUIRED)
 
 include_directories(${CMAKE_SOURCE_DIR})
+include_directories("${CMAKE_SOURCE_DIR}/src")
+add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE)
 add_subdirectory(core)
 
  set(ANTLR4_JAR_LOCATION ${PROJECT_SOURCE_DIR}/antlr/antlr-4.12.0-complete.jar)
@@ -39,21 +43,28 @@ antlr4_generate(wwivbasic_parser
 )
  
 add_library(wwivbasic_interpreter
-            "src/execution_context.cpp"
+            "src/context.cpp"
             "src/executor.cpp"
             "src/function_def_visitor.cpp"
             "src/utils.cpp"
             "src/value.cpp"
+            "src/stdlib/common.cpp"
+            "src/stdlib/numbers.cpp"
+            "src/stdlib/strings.cpp"
             ${ANTLR4_SRC_FILES_wwivbasic_lexer} 
             ${ANTLR4_SRC_FILES_wwivbasic_parser}
 )
+
+add_executable(wwivbasic_tests
+               "src/stdlib/strings_test.cpp")
+target_link_libraries(wwivbasic_tests PRIVATE GTest::gtest_main wwivbasic_interpreter)
+
 
 target_include_directories(wwivbasic_interpreter PUBLIC ${ANTLR4_INCLUDE_DIR} 
                            ${ANTLR4_INCLUDE_DIR_wwivbasic_lexer} 
                            ${ANTLR4_INCLUDE_DIR_wwivbasic_parser})
 target_link_libraries(wwivbasic_interpreter antlr4_shared fmt::fmt-header-only core)
 target_compile_definitions(wwivbasic_interpreter PUBLIC _CRT_SECURE_NO_WARNINGS)
-
 
 
 add_executable(basicrun
