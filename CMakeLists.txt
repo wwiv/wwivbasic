@@ -56,7 +56,10 @@ add_library(wwivbasic_interpreter
 )
 
 add_executable(wwivbasic_tests
-               "src/stdlib/strings_test.cpp")
+               "src/utils_test.cpp"
+               "src/stdlib/strings_test.cpp"
+)
+
 target_link_libraries(wwivbasic_tests PRIVATE GTest::gtest_main wwivbasic_interpreter)
 
 

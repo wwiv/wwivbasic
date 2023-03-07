@@ -159,6 +159,8 @@ public:
 
   std::deque<Scope> scopes;
   std::map<std::string, BasicFunction, wwiv::stl::ci_less> functions;
+  // list of modules currently imported using "IMPORT @module"
+  std::set<std::string, wwiv::stl::ci_less> imported_modules;
 
 private:
   std::string name_;
@@ -239,8 +241,6 @@ public:
     return su->tree();
   }
 
-  // list of modules currently imported using "IMPORT @module"
-  std::set<std::string, wwiv::stl::ci_less> imported_modules;
   // All registered modules
   std::map<std::string, Module, wwiv::stl::ci_less> modules;
   std::map<std::filesystem::path, std::unique_ptr<SourceUnit>> sources;

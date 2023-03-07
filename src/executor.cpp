@@ -53,6 +53,7 @@ std::any ExecutionVisitor::visitImportModule(BasicParser::ImportModuleContext* c
     // import package
     auto modulename = context->ID()->getText();
     fmt::print("Import module: '{}'\n", modulename);
+    ec_.module->imported_modules.emplace(modulename);
   }
   else if (context->STRING()) {
     auto fn = remove_quotes(context->STRING()->getText());
