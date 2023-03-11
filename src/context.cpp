@@ -22,7 +22,7 @@ void Module::upsert(const std::string& name, const Value& value) {
   for (auto it = std::rbegin(scopes); it != std::rend(scopes); it++) {
     if (contains(it->local_vars, name)) {
       auto& var = it->local_vars.at(name);
-      var.value = value;
+      var.value(value);
       // updated existing.
       return;
     }
@@ -32,16 +32,16 @@ void Module::upsert(const std::string& name, const Value& value) {
   scope.local_vars.emplace(name, Var(name, value));
 }
 
-Value Module::var(const std::string& name) {
+std::optional<Var> Module::var(const std::string& name) {
   for (auto it = std::rbegin(scopes); it != std::rend(scopes); it++) {
     if (contains(it->local_vars, name)) {
-      const auto& var = it->local_vars.at(name);
-      fmt::print("Found Var: {}={} at scope: {}\n", name, var.value, it->fn_name);
-      return var.value;
+      auto& var = it->local_vars.at(name);
+      fmt::print("Found Var: {}={} at scope: {}\n", name, var.value(), it->fn_name);
+      return var;
     }
   }
   std::cout << "UNKNOWN VARIABLE REFERENCED: " << name << std::endl;
-  return {};
+  return std::nullopt;
 }
 
 bool Module::has_var(const std::string& name) const {
@@ -167,7 +167,7 @@ void Context::upsert(const std::string& name, const Value& value) {
   }
 }
 
-Value Context::var(const std::string& name) {
+std::optional<Var> Context::var(const std::string& name) {
   
   if (const auto [pkg, id] = split_package_from_id(name); !pkg.empty()) {
     // fully qualified
@@ -175,8 +175,7 @@ Value Context::var(const std::string& name) {
       // we have a module.
       return modules.at(pkg).var(id);
     }
-    // TODO(rushfan): Error that we don't have a module loaded for this.
-    return Value(false);
+    return std::nullopt;
   }
   // Not fully qualified case.
   if (!module->has_var(name) && root->has_var(name)) {

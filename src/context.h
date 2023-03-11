@@ -20,10 +20,13 @@ namespace wwivbasic {
 
 class Var {
 public:
-  Var(const std::string& n, const Value& v) : name(n), value(v) {}
+  Var(const std::string& n, const Value& v) : name_(n), value_(v) {}
+  Value& value() { return value_; }
+  Value& value(const Value& v) { value_ = v;  return value_; }
 
-  std::string name;
-  Value value;
+private:
+  std::string name_;
+  Value value_;
 };
 
 class Scope {
@@ -126,7 +129,7 @@ public:
   // Creates a variable at the top scope or updates existing variable.
   void upsert(const std::string& name, const Value& value);
   // Gets the value of a variable.
-  Value var(const std::string& name);
+  std::optional<Var> var(const std::string& name);
   // Calls a function
   Value call(const std::string& function_name, const std::vector<Value>& params,
     ExecutionVisitor* visitor);
@@ -210,7 +213,7 @@ public:
   // Creates a variable at the top scope or updates existing variable.
   void upsert(const std::string& name, const Value& value);
   // Gets the value of a variable.
-  Value var(const std::string& name);
+  std::optional<Var> var(const std::string& name);
   // Calls a function
   Value call(const std::string& function_name, const std::vector<Value>& params,
     ExecutionVisitor* visitor);

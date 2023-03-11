@@ -79,6 +79,8 @@ public:
 
   std::any visitVariable(BasicParser::VariableContext* context) override;
 
+  std::any visitRvalue(BasicParser::RvalueContext* ctx) override;
+
   // std::any visitProcedureName(BasicParser::ProcedureNameContext* context)
   // override;
 

@@ -100,10 +100,25 @@ std::any ExecutionVisitor::visitInt(BasicParser::IntContext* context) {
 
 std::any
 ExecutionVisitor::visitAssignmentStatement(BasicParser::AssignmentStatementContext* context) {
-  const auto varname = context->variable()->getText();
-  const auto value = Value(visit(context->expr()));
-  std::cout << "ASSIGN: " << varname << " = " << value << std::endl;
-  ec_.upsert(varname, value);
+  // TODO(rushfan): make this return the lvalue if we want to support chaining
+  // of assignments like:
+  // a = b = 10
+  const auto lvalue_name = context->lvalue()->getText();
+  if (context->expr()) {
+    const auto value = Value(visit(context->expr()));
+    std::cout << "ASSIGN: " << lvalue_name << " = " << value << std::endl;
+    ec_.upsert(lvalue_name, value);
+  }
+  else if (context->rvalue()) {
+    const auto rvalueName = context->rvalue()->getText();
+    if (auto rvalue = ec_.var(rvalueName)) {
+      std::cout << "ASSIGN LVALUE=RVALUE: " << lvalue_name << " = " << rvalue.value().value() << std::endl;
+      ec_.upsert(lvalue_name, rvalue.value().value());
+    }
+  }
+  else {
+    fmt::print("Need expr or rvalue for assignment.");
+  }
   return {};
 }
  
@@ -142,9 +157,8 @@ std::any ExecutionVisitor::visitRelation(BasicParser::RelationContext* context) 
 }
 
 std::any ExecutionVisitor::visitIdent(BasicParser::IdentContext* context) {
-  const auto name = context->getText();
-  auto var = ec_.var(name);
-  return var.toAny();
+  LOG(INFO) << fmt::format("visitIdent: '{}'", context->getText());
+  return visitRvalue(context->rvalue());
 }
 
 
@@ -246,12 +260,12 @@ std::any ExecutionVisitor::visitForStatement(BasicParser::ForStatementContext* c
   // TODO(rushfan): May need to change to a while loop.
   // TODO(rushfan): Need to figure out how to add RETURN and BREAK support here.
   for (int current = start.toInt(); current != end.toInt(); current += step) {
-    var.value.set(current);
+    var.value().set(current);
     visit(ctx->statements());
-    current = var.value.toInt();
+    current = var.value().toInt();
   }
   // Handle last loop where current == end;
-  var.value.set(end.toInt());
+  var.value().set(end.toInt());
   visit(ctx->statements());
 
   // remove latest scope.
@@ -267,6 +281,20 @@ std::any ExecutionVisitor::visitReturnStatement(BasicParser::ReturnStatementCont
 }
 
 std::any ExecutionVisitor::visitVariable(BasicParser::VariableContext* context) {
-  return ec_.var(context->getText()).toAny();
+  if (auto v = ec_.var(context->getText())) {
+    return v->value().toAny();
+  }
+  return {};
 }
+
+// RValue variable, unless we support RValue references, always treat it as
+// a value
+std::any ExecutionVisitor::visitRvalue(BasicParser::RvalueContext* context) {
+  if (auto v = ec_.var(context->getText())) {
+    return v->value().toAny();
+  }
+  return {};
+}
+
+
 } // namespace wwivbasic

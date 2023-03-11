@@ -68,7 +68,7 @@ expr: expr relationaloperator expr      # Relation
     | expr additiveoperator expr        # AddSub
     | procedureCall                     # ProcCall
     | LPAREN expr RPAREN                # Parens
-    | identifier = id                   # Ident
+    | rvalue                            # Ident
     | INT                               # Int
     | STRING                            # String
     | booleanExpr                       # Boolean
@@ -104,7 +104,8 @@ relationaloperator
 // Statements
 
 assignmentStatement 
-  : <assoc = right> variable EQ expr NEWLINE
+  : lvalue EQ rvalue NEWLINE
+  | <assoc = right> lvalue EQ expr NEWLINE
   ;
 
 // conditional
@@ -134,8 +135,11 @@ returnStatement
   : RETURN expr NEWLINE
 ;
 
+lvalue :   variable;
+
 id: ID;
 
 variable :   ID;
+rvalue :   ID;
 procedureName : ID;
 
