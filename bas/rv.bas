@@ -1,4 +1,4 @@
 a = 10
 b = a
 a = 12
-print(b)
+print(b + 10)

@@ -19,20 +19,25 @@
 
 namespace wwivbasic {
 
+
+struct value_type_t;
+
 class Value {
 public:
-  enum class Type { BOOLEAN, INTEGER, STRING };
+  enum class NativeType { BOOLEAN, INTEGER, STRING };
 
-  Value() : value_(std::string()), type(Type::STRING) { debug = ""; }
-  explicit Value(bool b) : value_(b), type(Type::BOOLEAN) { debug = fmt::format("{}", b); }
-  explicit Value(int i) : value_(i), type(Type::INTEGER) { debug = fmt::format("{}", i); }
-  explicit Value(const std::string& s) : value_(s), type(Type::STRING) { debug = s; }
-  explicit Value(const char* s) : value_(std::string(s)), type(Type::STRING) { debug = s; }
+  Value(const std::any& a, const std::string & type, const std::string& debug, value_type_t* f);
   explicit Value(const std::any& a);
+
+  Value() : Value(false) {}
+  explicit Value(bool b) : Value(std::make_any<bool>(b)) {}
+  explicit Value(int i) : Value(std::make_any<int>(i)) {}
+  explicit Value(const std::string& s) : Value(std::make_any<std::string>(s)) {}
+  explicit Value(const char* s) : Value(std::make_any<std::string>(std::string(s))) {}
 
   int set(int i) {
     value_ = i;
-    type = Type::INTEGER;
+    native_type = NativeType::INTEGER;
     debug = fmt::format("{}", i);
     return i;
   }
@@ -40,7 +45,7 @@ public:
   std::string set(std::string_view sv) {
     auto s = std::string(sv);
     value_ = s;
-    type = Type::STRING;
+    native_type = NativeType::STRING;
     debug = fmt::format("{}", s);
     return s;
   }
@@ -51,7 +56,7 @@ public:
   std::any toAny() const;
 
   template <typename T> 
-  T get() const { return std::get<T>(value_); }
+  T get() const { return std::any_cast<T>(value_); }
 
   // operators
   Value operator+(const Value& that) const;
@@ -67,15 +72,71 @@ public:
   bool operator>(const Value& that) const;
   bool operator==(const Value& that) const;
   bool operator!=(const Value& that) const { return !(*this == that); }
+  /**
+   * @brief  Registers STRING, INT, and BOOLEAN types.
+  */
+  static void InitalizeDefaultTypes();
 
 private:
-  std::variant<bool, int, std::string> value_;
-  Type type;
+  std::any value_;
+  NativeType native_type;
+  std::string type;
   std::string debug;
 
+  // holds value_type_t<T> in any.
+  static std::map<std::string, value_type_t*> types;
+  value_type_t* fns{ nullptr };
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& v);
+
+
+struct value_type_t {
+  value_type_t() {}
+  std::string name;
+
+  typedef std::function<Value(const Value&, const Value&)> op_fn;
+  typedef std::function<bool(const Value&, const Value&)> rel_fn;
+  typedef std::function<std::string(const std::any&)> to_string_fn;
+  typedef std::function<std::any(const std::string&)> from_string_fn;
+  typedef std::function<int(const std::any&)> to_int_fn;
+  typedef std::function<std::any(int)> from_int_fn;
+  typedef std::function<bool(const std::any&)> to_bool_fn;
+  typedef std::function<std::any(bool)> from_bool_fn;
+  typedef std::function<int(const std::any&)> val_len_fn;
+  std::function<bool(rel_fn&, rel_fn&, const Value&, const Value&)> default_or_fn =
+    [=](rel_fn& fl, rel_fn& fr, const Value& l, const Value& r) -> bool {
+    if (!fl || !fr) {
+      return false;
+    }
+    return fl(l, r) || fr(l, r);
+  };
+
+  rel_fn lt;
+  rel_fn gt;
+  rel_fn eq;
+  rel_fn ne = [=](const Value& l, const Value& r) -> bool { return !eq(l, r); };
+  rel_fn ge = [=](const Value& l, const Value& r) -> bool { return default_or_fn(eq, gt, l, r); };
+  rel_fn le = [=](const Value& l, const Value& r) -> bool { return default_or_fn(eq, lt, l, r); };
+  rel_fn and = [](const Value& l, const Value& r) -> bool { return l.toBool() && r.toBool(); };
+  rel_fn or = [](const Value& l, const Value& r) -> bool { return l.toBool() || r.toBool(); };
+
+  op_fn add = [](const Value& l, const Value& r) -> Value { return Value(l.toInt() + r.toInt()); };
+  op_fn sub = [](const Value& l, const Value& r)->Value { return Value(l.toInt() - r.toInt()); };
+  op_fn mul = [](const Value& l, const Value& r)->Value { return Value(l.toInt() * r.toInt()); };
+  op_fn div = [](const Value& l, const Value& r)->Value { return Value(l.toInt() / r.toInt()); };
+  op_fn mod = [](const Value& l, const Value& r)->Value { return Value(l.toInt() % r.toInt()); };
+
+  to_string_fn to_string;
+  from_string_fn from_string;
+  to_int_fn to_int;
+  from_int_fn from_int;
+  to_bool_fn to_bool;
+  from_bool_fn from_bool;
+
+  val_len_fn val;
+  val_len_fn len;
+};
 
 
 } // namespace wwivbasic

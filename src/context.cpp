@@ -114,6 +114,8 @@ Context::Context() {
   modules.at("").scopes.emplace_back("<GLOBAL>");
   root = module = &modules.at("");
 
+  // Register default value types
+  Value::InitalizeDefaultTypes();
   // Load default modules.
 
   // Numeric

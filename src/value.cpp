@@ -16,211 +16,256 @@ using namespace wwiv::stl;
 
 namespace wwivbasic {
 
+value_type_t* make_value_type_int() {
+  value_type_t* i = new value_type_t();
+  i->name = "INTEGER";
+  i->lt = [](const Value& l, const Value& r) -> bool {
+    return std::any_cast<int>(l) < std::any_cast<int>(r);
+  };
+  i->gt = [](const Value& l, const Value& r) -> bool {
+    return bool(std::any_cast<int>(l) > std::any_cast<int>(r));
+  };
+  i->eq = [](const Value& l, const Value& r) -> bool {
+    return bool(std::any_cast<int>(l) == std::any_cast<int>(r));
+  };
+  i->to_string = [](const std::any& s) -> std::string {
+    return fmt::format("{:d}", std::any_cast<int>(s));
+  };
+  i->to_int = [](const std::any& s) -> int { return std::any_cast<int>(s); };
+  i->to_bool = [](const std::any& s) -> bool { return std::any_cast<int>(s) != 0; };
+
+  i->from_string = [](const std::string& s) -> std::any {
+    try {
+      return std::stoi(s);
+    }
+    catch (const std::exception&) {
+      return 0;
+    }
+  };
+  i->from_int = [](int i) -> std::any { return i; };
+  i->from_bool = [](bool b) -> std::any { return b ? 1 : 0; };
+  i->val = [](const std::any& s) -> int { return std::any_cast<int>(s); };
+  i->len = [](const std::any& s) -> int {
+    int i = std::any_cast<int>(s);
+    return static_cast<int>(std::floor(std::log10(i))) + 1;
+  };
+
+  return i;
+}
+
+value_type_t* make_value_type_boolean() {
+  value_type_t* i = new value_type_t();
+  i->name = "BOOLEAN";
+  i->lt = [](const Value& l, const Value& r) -> bool {
+    return bool(std::any_cast<bool>(l) < std::any_cast<bool>(r));
+  };
+  i->gt = [](const Value& l, const Value& r) -> bool {
+    return bool(std::any_cast<bool>(l) > std::any_cast<bool>(r));
+  };
+  i->eq = [](const Value& l, const Value& r) -> bool {
+    return bool(std::any_cast<bool>(l) == std::any_cast<bool>(r));
+  };
+  i->to_string = [](const std::any& s) -> std::string {
+    return fmt::format("{:d}", std::any_cast<bool>(s));
+  };
+  i->to_int = [](const std::any& s) -> int { return std::any_cast<bool>(s) ? 1 : 0; };
+  i->to_bool = [](const std::any& s) -> bool { return std::any_cast<bool>(s); };
+
+  i->from_string = [](const std::string& s) -> std::any {
+    return std::any_cast<bool>(s) ? "TRUE" : "FALSE";
+  };
+  i->from_int = [](int i) -> std::any { return i != 0; };
+  i->from_bool = [](bool b) -> std::any { return b; };
+  i->val = [](const std::any& s) -> int { return std::any_cast<bool>(s) ? 1 : 0; };
+  i->len = [](const std::any& s) -> int { return 1; };
+
+  return i;
+}
+
+
+value_type_t* make_value_type_string() {
+  value_type_t* i = new value_type_t();
+  i->name = "STRING";
+  i->lt = [](const Value& l, const Value& r) -> bool {
+    return bool(std::any_cast<std::string>(l) < std::any_cast<std::string>(r));
+  };
+  i->gt = [](const Value& l, const Value& r) -> bool {
+    return bool(std::any_cast<std::string>(l) > std::any_cast<std::string>(r));
+  };
+  i->eq = [](const Value& l, const Value& r) -> bool {
+    return bool(std::any_cast<std::string>(l) == std::any_cast<std::string>(r));
+  };
+  i->to_string = [](const std::any& s) -> std::string {
+    return std::any_cast<std::string>(s);
+  };
+  i->to_int = [](const std::any& s) -> int { 
+    try {
+      return std::stoi(std::any_cast<std::string>(s));
+    }
+    catch (const std::exception&) {
+      return 0;
+    }
+  };
+  i->to_bool = [](const std::any& s) -> bool { 
+    return wwiv::strings::iequals(std::any_cast<std::string>(s), "TRUE");
+  };
+
+  i->from_string = [](const std::string& s) -> std::any {
+    return s;
+  };
+  i->from_int = [](int i) -> std::any { return fmt::format("{:d}", i); };
+  i->from_bool = [](bool b) -> std::any { return b ? "TRUE" : "FALSE"; };
+  i->val = [](const std::any& s) -> int { 
+    try {
+      return std::stoi(std::any_cast<std::string>(s));
+    }
+    catch (const std::exception&) {
+      return 0;
+    }
+  };
+  i->len = [](const std::any& s) -> int {
+    return wwiv::strings::size_int(std::any_cast<std::string>(s));
+  };
+
+  return i;
+}
+
+static value_type_t* int_fns;
+static value_type_t* string_fns;
+static value_type_t* bool_fns;
+
+//static 
+std::map<std::string, value_type_t*> Value::types;
+
+std::once_flag types_initialized;
+
+//static 
+void Value::InitalizeDefaultTypes() {
+  std::call_once(types_initialized, []() { 
+    int_fns = make_value_type_int();
+    string_fns = make_value_type_string();
+    bool_fns = make_value_type_boolean();
+
+    types.emplace("INTEGER", int_fns);
+    types.emplace("BOOLEAN", bool_fns);
+    types.emplace("STRING", string_fns);
+  });
+}
+
+
+//Value::Value() : value_(std::string()), type("STRING") { debug = ""; }
+
+Value::Value(const std::any& a, const std::string& t, const std::string& d, value_type_t* f)
+    : value_(a), type(t), debug(d), fns(f) {
+  if (debug.empty()) {
+    debug = fmt::format("{}", toString());
+  }
+  if (auto it = types.find(type); it != std::end(types)) {
+    fns = types.find(type)->second;
+  }
+  else {
+    LOG(ERROR) << "No type function for type: " << type;
+    fns = types.find("STRING")->second;
+  }
+
+}
+
+/*
+Value::Value(bool b) : value_(b), type("BOOLEAN") { debug = fmt::format("{}", b); }
+
+Value::Value(int i) : value_(i), type("INTEGER") { debug = fmt::format("{}", i); }
+
+Value::Value(const std::string& s) : value_(s), type("STRING") { debug = s; }
+
+Value::Value(const char* s) : value_(std::string(s)), type("STRING") { debug = s; }
+
+*/
+
 Value::Value(const std::any& a) {
   if (!a.has_value()) {
     debug = "WTF";
+    value_ = false;
+    type = "BOOLEAN";
+    fns = types.find("BOOLEAN")->second;
     return;
   }
+
+  value_ = a;
   if (a.type() == typeid(bool)) {
-    type = Type::BOOLEAN;
-    value_ = std::any_cast<bool>(a);
-    debug = fmt::format("{}", std::get<bool>(value_));
+    type = "BOOLEAN";
+    fns = types.find(type)->second;
+    debug = fmt::format("{}", std::any_cast<bool>(value_));
   } else if (a.type() == typeid(int)) {
-    type = Type::INTEGER;
-    value_ = std::any_cast<int>(a);
-    debug = fmt::format("{}", std::get<int>(value_));
+    type = "INTEGER";
+    fns = types.find(type)->second;
+    debug = fmt::format("{}", std::any_cast<int>(value_));
   } else if (a.type() == typeid(std::string)) {
-    type = Type::STRING;
-    value_ = std::any_cast<std::string>(a);
-    debug = fmt::format("{}", std::get<std::string>(value_));
+    type = "STRING";
+    fns = types.find(type)->second;
+    debug = fmt::format("{}", std::any_cast<std::string>(value_));
   } else {
-    type = Type::STRING;
+    // TODO(rushfan): Look up custom type here
+    type = "STRING";
+    fns = types.find(type)->second;
     debug = fmt::format("WTF! {}", a.type().name());
-    value_ = std::any_cast<std::string>(a);
-  }
+  } 
+
 }
 
 bool Value::toBool() const {
-  switch (type) {
-  case Type::BOOLEAN: {
-    return std::get<bool>(value_);
-  } break;
-  case Type::INTEGER: {
-    const auto i = std::get<int>(value_);
-    return i != 0;
-  } break;
-  case Type::STRING: {
-    const auto& s = std::get<std::string>(value_);
-    return s == "TRUE";
-  } break;
-  }
-  return false;
+  return fns->to_bool(value_);
 }
 
 int Value::toInt() const {
-  switch (type) {
-  case Type::BOOLEAN: {
-    const auto b = std::get<bool>(value_);
-    return b ? 1 : 0;
-  } break;
-  case Type::INTEGER: {
-    return std::get<int>(value_);
-  } break;
-  case Type::STRING: {
-    const auto s = std::get<std::string>(value_);
-    try {
-      return std::stoi(s);
-    } catch (const std::exception&) {
-      return 0;
-    }
-  } break;
-  }
-  return 0;
+  return fns->to_int(value_);
 }
 
 std::string Value::toString() const {
-  switch (type) {
-  case Type::BOOLEAN: {
-    const auto b = std::get<bool>(value_);
-    return b ? "TRUE" : "FALSE";
-  } break;
-  case Type::INTEGER: {
-    return std::to_string(std::get<int>(value_));
-  } break;
-  case Type::STRING: {
-    return std::get<std::string>(value_);
-  } break;
-  }
-  return {};
+  return fns->to_string(value_);
 }
 
-std::any Value::toAny() const { 
-  switch (type) {
-  case Type::BOOLEAN: return std::make_any<bool>(std::get<bool>(value_));
-  case Type::INTEGER: return std::make_any<int>(std::get<int>(value_));
-  case Type::STRING:return std::make_any<std::string>(std::get<std::string>(value_));
-  }
-  return {};
+std::any Value::toAny() const {
+  return value_;
 }
 
 Value Value::operator+(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return Value(toBool() || that.toBool());
-  case Type::INTEGER:
-    return Value(toInt() + that.toInt());
-  case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that));
-  }
-  return Value(false);
+  return fns->add(*this, that);
 }
 
 Value Value::operator-(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return Value(!(toBool() && that.toBool()));
-  case Type::INTEGER:
-    return Value(toInt() - that.toInt());
-  case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that));
-  }
-  return Value(false);
+  return fns->sub(*this, that);
 }
 
 Value Value::operator*(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return Value(toBool() * that.toBool());
-  case Type::INTEGER:
-    return Value(toInt() * that.toInt());
-  case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that)); // ????!
-  }
-  return Value(false);
+  return fns->mul(*this, that);
 }
 
 Value Value::operator/(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return Value(false); // TODO WARN
-  case Type::INTEGER:
-    return Value(toInt() / that.toInt());
-  case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that));
-  }
-  return Value(false);
+  return fns->div(*this, that);
 }
 
 Value Value::operator%(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return Value(false); // TODO WARN
-  case Type::INTEGER:
-    return Value(toInt() % that.toInt());
-  case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that));
-  }
-  return Value(false);
+  return fns->mod(*this, that);
 }
 
 bool Value::operator<(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return (toBool() < that.toBool());
-  case Type::INTEGER:
-    return (toInt() < that.toInt());
-  case Type::STRING:
-    return (toString() < that.toString());
-  }
-  return (false);
+  return fns->lt(*this, that);
 }
 
 bool Value::operator>(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return (toBool() > that.toBool());
-  case Type::INTEGER:
-    return (toInt() > that.toInt());
-  case Type::STRING:
-    return (toString() > that.toString());
-  }
-  return (false);
+  return fns->gt(*this, that);
 }
 
 bool Value::operator==(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return (toBool() == that.toBool());
-  case Type::INTEGER:
-    return (toInt() == that.toInt());
-  case Type::STRING:
-    return (toString() == that.toString());
-  }
-  return (false);
+  return fns->eq(*this, that);
 }
 
 Value Value::operator||(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return Value(toBool() || that.toBool());
-  case Type::INTEGER:
-    return Value(toInt() || that.toInt());
-  case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that)); // Is this right
-  }
-  return Value(false);
+  return Value(fns->or(*this, that));
 }
 
 Value Value::operator&&(const Value& that) const {
-  switch (type) {
-  case Type::BOOLEAN:
-    return Value(toBool() && that.toBool());
-  case Type::INTEGER:
-    return Value(toInt() && that.toInt());
-  case Type::STRING:
-    return Value(fmt::format("{}{}", toString(), that)); // Is this right
-  }
-  return Value(false);
+  return Value(fns->and(*this, that));
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& v) {
