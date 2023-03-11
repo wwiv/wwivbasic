@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <typeindex>
 #include <variant>
 #include <vector>
 
@@ -24,8 +25,6 @@ struct value_type_t;
 
 class Value {
 public:
-  enum class NativeType { BOOLEAN, INTEGER, STRING };
-
   Value(const std::any& a, const std::string & type, const std::string& debug, value_type_t* f);
   explicit Value(const std::any& a);
 
@@ -37,7 +36,6 @@ public:
 
   int set(int i) {
     value_ = i;
-    native_type = NativeType::INTEGER;
     debug = fmt::format("{}", i);
     return i;
   }
@@ -45,7 +43,6 @@ public:
   std::string set(std::string_view sv) {
     auto s = std::string(sv);
     value_ = s;
-    native_type = NativeType::STRING;
     debug = fmt::format("{}", s);
     return s;
   }
@@ -76,15 +73,18 @@ public:
    * @brief  Registers STRING, INT, and BOOLEAN types.
   */
   static void InitalizeDefaultTypes();
+  static void RegisterType(std::string_view name, const std::type_info& type,
+                           value_type_t* value_type);
 
 private:
   std::any value_;
-  NativeType native_type;
   std::string type;
   std::string debug;
 
-  // holds value_type_t<T> in any.
-  static std::map<std::string, value_type_t*> types;
+  // name -> value_type_t
+  static std::map<std::string, value_type_t*> types_;
+  // type -> name
+  static std::map<std::type_index, std::string> typeinfo_map_;
   value_type_t* fns{ nullptr };
 };
 

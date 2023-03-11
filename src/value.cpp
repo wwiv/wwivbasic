@@ -10,6 +10,8 @@
 #include <map>
 #include <stack>
 #include <string>
+#include <typeindex>
+#include <typeinfo>
 #include <vector>
 
 using namespace wwiv::stl;
@@ -66,13 +68,13 @@ value_type_t* make_value_type_boolean() {
     return bool(std::any_cast<bool>(l) == std::any_cast<bool>(r));
   };
   i->to_string = [](const std::any& s) -> std::string {
-    return fmt::format("{:d}", std::any_cast<bool>(s));
+    return  std::any_cast<bool>(s) ? "TRUE" : "FALSE";
   };
   i->to_int = [](const std::any& s) -> int { return std::any_cast<bool>(s) ? 1 : 0; };
   i->to_bool = [](const std::any& s) -> bool { return std::any_cast<bool>(s); };
 
   i->from_string = [](const std::string& s) -> std::any {
-    return std::any_cast<bool>(s) ? "TRUE" : "FALSE";
+    return wwiv::strings::iequals(s, "TRUE");
   };
   i->from_int = [](int i) -> std::any { return i != 0; };
   i->from_bool = [](bool b) -> std::any { return b; };
@@ -135,9 +137,18 @@ static value_type_t* string_fns;
 static value_type_t* bool_fns;
 
 //static 
-std::map<std::string, value_type_t*> Value::types;
+std::map<std::string, value_type_t*> Value::types_;
+std::map<std::type_index, std::string> Value::typeinfo_map_;
 
 std::once_flag types_initialized;
+
+//static 
+void Value::RegisterType(std::string_view name, const std::type_info& type,
+  value_type_t* value_type) {
+  types_.insert_or_assign(std::string(name), value_type);
+  typeinfo_map_.insert_or_assign(type, std::string(name));
+}
+
 
 //static 
 void Value::InitalizeDefaultTypes() {
@@ -146,9 +157,9 @@ void Value::InitalizeDefaultTypes() {
     string_fns = make_value_type_string();
     bool_fns = make_value_type_boolean();
 
-    types.emplace("INTEGER", int_fns);
-    types.emplace("BOOLEAN", bool_fns);
-    types.emplace("STRING", string_fns);
+    RegisterType("INTEGER", typeid(int), int_fns);
+    RegisterType("BOOLEAN", typeid(bool), bool_fns);
+    RegisterType("STRING", typeid(std::string), string_fns);
   });
 }
 
@@ -160,55 +171,46 @@ Value::Value(const std::any& a, const std::string& t, const std::string& d, valu
   if (debug.empty()) {
     debug = fmt::format("{}", toString());
   }
-  if (auto it = types.find(type); it != std::end(types)) {
-    fns = types.find(type)->second;
+  if (auto it = types_.find(type); it != std::end(types_)) {
+    fns = types_.find(type)->second;
   }
   else {
     LOG(ERROR) << "No type function for type: " << type;
-    fns = types.find("STRING")->second;
+    fns = types_.find("STRING")->second;
   }
 
 }
-
-/*
-Value::Value(bool b) : value_(b), type("BOOLEAN") { debug = fmt::format("{}", b); }
-
-Value::Value(int i) : value_(i), type("INTEGER") { debug = fmt::format("{}", i); }
-
-Value::Value(const std::string& s) : value_(s), type("STRING") { debug = s; }
-
-Value::Value(const char* s) : value_(std::string(s)), type("STRING") { debug = s; }
-
-*/
 
 Value::Value(const std::any& a) {
   if (!a.has_value()) {
     debug = "WTF";
     value_ = false;
     type = "BOOLEAN";
-    fns = types.find("BOOLEAN")->second;
+    fns = types_.find("BOOLEAN")->second;
     return;
+  }
+  if (a.type() == typeid(Value)) {
+    Value other = std::any_cast<Value>(a);
+    value_ = other.value_;
+    type = other.type;
+    debug = other.debug;
+    fns = other.fns;
   }
 
   value_ = a;
-  if (a.type() == typeid(bool)) {
-    type = "BOOLEAN";
-    fns = types.find(type)->second;
-    debug = fmt::format("{}", std::any_cast<bool>(value_));
-  } else if (a.type() == typeid(int)) {
-    type = "INTEGER";
-    fns = types.find(type)->second;
-    debug = fmt::format("{}", std::any_cast<int>(value_));
-  } else if (a.type() == typeid(std::string)) {
-    type = "STRING";
-    fns = types.find(type)->second;
-    debug = fmt::format("{}", std::any_cast<std::string>(value_));
-  } else {
-    // TODO(rushfan): Look up custom type here
-    type = "STRING";
-    fns = types.find(type)->second;
-    debug = fmt::format("WTF! {}", a.type().name());
-  } 
+  const auto& ti = a.type();
+  const auto ti_name = ti.name();
+  if (auto it = typeinfo_map_.find(a.type()); it != std::end(typeinfo_map_)) {
+    type = it->second;
+    fns = types_.find(type)->second;
+    debug = fmt::format("{} ({})", toString(), type);
+    return;
+  }
+
+
+  type = "STRING";
+  fns = types_.find(type)->second;
+  debug = fmt::format("UNKNOWN TYPE: {}", a.type().name());
 
 }
 
