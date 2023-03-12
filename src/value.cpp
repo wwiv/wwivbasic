@@ -18,6 +18,15 @@ using namespace wwiv::stl;
 
 namespace wwivbasic {
 
+static value_type_t* int_fns;
+static value_type_t* string_fns;
+static value_type_t* bool_fns;
+
+//static 
+std::map<std::string, value_type_t*> Value::types_;
+std::map<std::type_index, std::string> Value::typeinfo_map_;
+
+
 value_type_t* make_value_type_int() {
   value_type_t* i = new value_type_t();
   i->name = "INTEGER";
@@ -132,14 +141,6 @@ value_type_t* make_value_type_string() {
   return i;
 }
 
-static value_type_t* int_fns;
-static value_type_t* string_fns;
-static value_type_t* bool_fns;
-
-//static 
-std::map<std::string, value_type_t*> Value::types_;
-std::map<std::type_index, std::string> Value::typeinfo_map_;
-
 std::once_flag types_initialized;
 
 //static 
@@ -154,17 +155,15 @@ void Value::RegisterType(std::string_view name, const std::type_info& type,
 void Value::InitalizeDefaultTypes() {
   std::call_once(types_initialized, []() { 
     int_fns = make_value_type_int();
-    string_fns = make_value_type_string();
-    bool_fns = make_value_type_boolean();
-
     RegisterType("INTEGER", typeid(int), int_fns);
+
+    bool_fns = make_value_type_boolean();
     RegisterType("BOOLEAN", typeid(bool), bool_fns);
+
+    string_fns = make_value_type_string();
     RegisterType("STRING", typeid(std::string), string_fns);
   });
 }
-
-
-//Value::Value() : value_(std::string()), type("STRING") { debug = ""; }
 
 Value::Value(const std::any& a, const std::string& t, const std::string& d, value_type_t* f)
     : value_(a), type(t), debug(d), fns(f) {
@@ -178,7 +177,6 @@ Value::Value(const std::any& a, const std::string& t, const std::string& d, valu
     LOG(ERROR) << "No type function for type: " << type;
     fns = types_.find("STRING")->second;
   }
-
 }
 
 Value::Value(const std::any& a) {
@@ -189,8 +187,9 @@ Value::Value(const std::any& a) {
     fns = types_.find("BOOLEAN")->second;
     return;
   }
+
   if (a.type() == typeid(Value)) {
-    Value other = std::any_cast<Value>(a);
+    auto other = std::any_cast<Value>(a);
     value_ = other.value_;
     type = other.type;
     debug = other.debug;

@@ -7,9 +7,9 @@
 
 #include <any>
 #include <deque>
-#include <iosfwd>
 #include <filesystem>
 #include <functional>
+#include <iosfwd>
 #include <map>
 #include <memory>
 #include <string>
@@ -20,12 +20,11 @@
 
 namespace wwivbasic {
 
-
 struct value_type_t;
 
 class Value {
 public:
-  Value(const std::any& a, const std::string & type, const std::string& debug, value_type_t* f);
+  Value(const std::any& a, const std::string& type, const std::string& debug, value_type_t* f);
   explicit Value(const std::any& a);
 
   Value() : Value(false) {}
@@ -52,8 +51,7 @@ public:
   std::string toString() const;
   std::any toAny() const;
 
-  template <typename T> 
-  T get() const { return std::any_cast<T>(value_); }
+  template <typename T> T get() const { return std::any_cast<T>(value_); }
 
   // operators
   Value operator+(const Value& that) const;
@@ -69,9 +67,10 @@ public:
   bool operator>(const Value& that) const;
   bool operator==(const Value& that) const;
   bool operator!=(const Value& that) const { return !(*this == that); }
+
   /**
    * @brief  Registers STRING, INT, and BOOLEAN types.
-  */
+   */
   static void InitalizeDefaultTypes();
   static void RegisterType(std::string_view name, const std::type_info& type,
                            value_type_t* value_type);
@@ -85,11 +84,10 @@ private:
   static std::map<std::string, value_type_t*> types_;
   // type -> name
   static std::map<std::type_index, std::string> typeinfo_map_;
-  value_type_t* fns{ nullptr };
+  value_type_t* fns{nullptr};
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& v);
-
 
 struct value_type_t {
   value_type_t() {}
@@ -105,28 +103,14 @@ struct value_type_t {
   typedef std::function<std::any(bool)> from_bool_fn;
   typedef std::function<int(const std::any&)> val_len_fn;
   std::function<bool(rel_fn&, rel_fn&, const Value&, const Value&)> default_or_fn =
-    [=](rel_fn& fl, rel_fn& fr, const Value& l, const Value& r) -> bool {
+      [=](rel_fn& fl, rel_fn& fr, const Value& l, const Value& r) -> bool {
     if (!fl || !fr) {
       return false;
     }
     return fl(l, r) || fr(l, r);
   };
 
-  rel_fn lt;
-  rel_fn gt;
-  rel_fn eq;
-  rel_fn ne = [=](const Value& l, const Value& r) -> bool { return !eq(l, r); };
-  rel_fn ge = [=](const Value& l, const Value& r) -> bool { return default_or_fn(eq, gt, l, r); };
-  rel_fn le = [=](const Value& l, const Value& r) -> bool { return default_or_fn(eq, lt, l, r); };
-  rel_fn and = [](const Value& l, const Value& r) -> bool { return l.toBool() && r.toBool(); };
-  rel_fn or = [](const Value& l, const Value& r) -> bool { return l.toBool() || r.toBool(); };
-
-  op_fn add = [](const Value& l, const Value& r) -> Value { return Value(l.toInt() + r.toInt()); };
-  op_fn sub = [](const Value& l, const Value& r)->Value { return Value(l.toInt() - r.toInt()); };
-  op_fn mul = [](const Value& l, const Value& r)->Value { return Value(l.toInt() * r.toInt()); };
-  op_fn div = [](const Value& l, const Value& r)->Value { return Value(l.toInt() / r.toInt()); };
-  op_fn mod = [](const Value& l, const Value& r)->Value { return Value(l.toInt() % r.toInt()); };
-
+  // This is what needs to be implemented for custom types.
   to_string_fn to_string;
   from_string_fn from_string;
   to_int_fn to_int;
@@ -136,16 +120,32 @@ struct value_type_t {
 
   val_len_fn val;
   val_len_fn len;
-};
 
+  rel_fn lt;
+  rel_fn gt;
+  rel_fn eq;
+
+  // Most custom types can use the defaults below, if a custom type needs extra customization
+  // then override these as well.
+  rel_fn ne = [=](const Value& l, const Value& r) -> bool { return !eq(l, r); };
+  rel_fn ge = [=](const Value& l, const Value& r) -> bool { return default_or_fn(eq, gt, l, r); };
+  rel_fn le = [=](const Value& l, const Value& r) -> bool { return default_or_fn(eq, lt, l, r); };
+  rel_fn and = [](const Value& l, const Value& r) -> bool { return l.toBool() && r.toBool(); };
+  rel_fn or = [](const Value& l, const Value& r) -> bool { return l.toBool() || r.toBool(); };
+
+  op_fn add = [](const Value& l, const Value& r) -> Value { return Value(l.toInt() + r.toInt()); };
+  op_fn sub = [](const Value& l, const Value& r) -> Value { return Value(l.toInt() - r.toInt()); };
+  op_fn mul = [](const Value& l, const Value& r) -> Value { return Value(l.toInt() * r.toInt()); };
+  op_fn div = [](const Value& l, const Value& r) -> Value { return Value(l.toInt() / r.toInt()); };
+  op_fn mod = [](const Value& l, const Value& r) -> Value { return Value(l.toInt() % r.toInt()); };
+};
 
 } // namespace wwivbasic
 
 template <> class fmt::formatter<wwivbasic::Value> {
 public:
   constexpr auto parse(fmt::format_parse_context& ctx) { return ctx.begin(); }
-  template <typename Context>
-  constexpr auto format(wwivbasic::Value const& v, Context& ctx) const {
+  template <typename Context> constexpr auto format(wwivbasic::Value const& v, Context& ctx) const {
     return format_to(ctx.out(), "{}", v.toString());
   }
 };
