@@ -502,3 +502,28 @@ TEST_F(InterpreterTest, UnknownMemberPathRoot) {
   EXPECT_EQ("test.bas:1: error: Unknown variable or module 'nosuch' in 'nosuch.x'",
             errors.front());
 }
+
+TEST_F(InterpreterTest, RealLiteralRules) {
+  // A whole real literal is an INTEGER, and -0.0 prints 0, like my_basic.
+  EXPECT_EQ("2 0 0.5\n", run("print 2.0; \" \"; -0.0; \" \"; -(-0.5)\n"));
+}
+
+TEST_F(InterpreterTest, RealLiteralOutOfRange) {
+  run("x = ." + std::string(400, '0') + "1\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ(0u, errors.front().rfind("test.bas:1: error: Number out of range: .000", 0))
+      << errors.front();
+}
+
+TEST_F(InterpreterTest, ForLoopWithRealStep) {
+  EXPECT_EQ("0 0.25 0.5 0.75 1 ", run("for x = 0 to 1 step 0.25\nprint x; \" \";\nnext\n"));
+}
+
+TEST_F(InterpreterTest, ForLoopWithRealBoundsCountingDown) {
+  EXPECT_EQ("1.5 1 0.5 ", run("for x = 1.5 to 0.5 step -0.5\nprint x; \" \";\nnext\n"));
+}
+
+TEST_F(InterpreterTest, ValOfNonDecimal) {
+  EXPECT_EQ("0 0 -2.5 1\n", run("print val(\"nan\"); \" \"; val(\"0x10\"); \" \"; "
+                                "val(\" -2.5\"); \" \"; 1 + \"0x10\"\n"));
+}

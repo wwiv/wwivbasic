@@ -5,6 +5,7 @@
 #include <any>
 #include <iosfwd>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -48,6 +49,12 @@ public:
   // A REAL, or an INTEGER if d is a whole number that fits in one, like
   // my_basic: arithmetic results go through this, so 1.5 + 1.5 is 3.
   static Value number(double d);
+
+  // Parses a decimal number at the start of s, after any spaces and an
+  // optional sign: "12", "1.5", " -3", "2.5e3", "12abc" (12). Hex, inf and nan
+  // are not numbers. Doesn't depend on the locale. nullopt if s doesn't start
+  // with a number or it doesn't fit in a double.
+  static std::optional<double> parse_number(std::string_view s);
 
   // Creates a new, empty list.
   static Value new_list();
@@ -105,7 +112,7 @@ public:
   bool operator!=(const Value& that) const { return !(*this == that); }
 
 private:
-  // Throws unless both operands are scalars (BOOLEAN, INTEGER, STRING).
+  // Throws unless both operands are scalars (BOOLEAN, INTEGER, REAL, STRING).
   void check_scalar(const Value& that, std::string_view op) const;
 
   std::variant<bool, int, double, std::string, ListPtr, IteratorPtr> value_;

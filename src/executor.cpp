@@ -331,7 +331,15 @@ std::any ExecutionVisitor::visitRvalue(BasicParser::RvalueContext* context) {
 }
 
 std::any ExecutionVisitor::visitReal(BasicParser::RealContext* context) {
-  return Value(std::stod(context->getText()));
+  // REAL tokens are only digits and a '.', so parse_number fails only when
+  // the value is too large.
+  const auto text = context->getText();
+  const auto d = Value::parse_number(text);
+  if (!d) {
+    throw BasicError(fmt::format("Number out of range: {}", text));
+  }
+  // Like my_basic, a whole number such as 2.0 is an INTEGER.
+  return Value::number(*d);
 }
 
 std::any ExecutionVisitor::visitInt(BasicParser::IntContext* context) {
@@ -354,7 +362,8 @@ std::any ExecutionVisitor::visitBoolean(BasicParser::BooleanContext* context) {
 std::any ExecutionVisitor::visitNegate(BasicParser::NegateContext* context) {
   const auto v = eval(context->expr());
   if (v.value_type() == Value::Type::REAL) {
-    return Value(-v.toDouble());
+    // Value::number, so -0.0 prints 0 like my_basic.
+    return Value::number(-v.toDouble());
   }
   return Value::number(-static_cast<double>(v.toInt()));
 }
@@ -468,24 +477,27 @@ std::any ExecutionVisitor::visitForStatement(BasicParser::ForStatementContext* c
     throw BasicError(
         fmt::format("NEXT {} does not match FOR {}", ctx->ID(1)->getText(), varname));
   }
-  const auto start = eval(ctx->expr(0)).toInt();
-  const auto end = eval(ctx->expr(1)).toInt();
-  const auto step = ctx->STEP() ? eval(ctx->expr(2)).toInt() : 1;
+  // Computed in doubles so REAL bounds and steps work (FOR x = 0 TO 1 STEP
+  // 0.25); Value::number keeps the loop variable an INTEGER when it's whole.
+  const auto start = eval(ctx->expr(0)).toDouble();
+  const auto end = eval(ctx->expr(1)).toDouble();
+  const auto step = ctx->STEP() ? eval(ctx->expr(2)).toDouble() : 1.0;
   if (step == 0) {
     throw BasicError("FOR loop STEP must not be 0");
   }
 
-  ec_.upsert(varname, Value(start));
+  ec_.upsert(varname, Value::number(start));
   while (true) {
-    const auto current = ec_.var(varname).value_or(Var(varname, Value(0))).value().toInt();
+    const auto current = ec_.var(varname).value_or(Var(varname, Value(0))).value().toDouble();
     if ((step > 0 && current > end) || (step < 0 && current < end)) {
       break;
     }
     if (!run_loop_body(ctx->statements())) {
       break;
     }
-    const auto next = ec_.var(varname).value_or(Var(varname, Value(0))).value().toInt() + step;
-    ec_.upsert(varname, Value(next));
+    // The body may change the loop variable, so read it again.
+    const auto next = ec_.var(varname).value_or(Var(varname, Value(0))).value().toDouble() + step;
+    ec_.upsert(varname, Value::number(next));
   }
   return {};
 }
