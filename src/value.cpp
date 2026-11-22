@@ -165,6 +165,16 @@ std::optional<double> Value::parse_number(std::string_view s) {
 
 namespace {
 
+// Formats a REAL. Whole numbers with up to 10 digits print in full
+// (3000000000), since timestamps and file sizes are common; others print
+// like printf("%g") (0.5, 3.14159, 1e+10), as in my_basic.
+std::string format_real(double d) {
+  if (std::trunc(d) == d && std::fabs(d) < 1e10) {
+    return fmt::format("{:.0f}", d);
+  }
+  return fmt::format("{:g}", d);
+}
+
 // Truncates toward zero and clamps to the INTEGER range.
 int clamp_to_int(double d) {
   if (std::isnan(d)) {
@@ -224,7 +234,7 @@ std::string Value::toString() const {
   case Type::INTEGER:
     return std::to_string(std::get<int>(value_));
   case Type::REAL:
-    return fmt::format("{:g}", std::get<double>(value_));
+    return format_real(std::get<double>(value_));
   case Type::STRING:
     return std::get<std::string>(value_);
   case Type::LIST:

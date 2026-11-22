@@ -103,7 +103,8 @@ public:
   // REALs are truncated toward zero.
   int toInt() const;
   double toDouble() const;
-  // REALs print like printf("%g") (3.14159, 0.5). Lists print as "LIST" and
+  // REALs print like printf("%g") (3.14159, 0.5), except whole numbers with up
+  // to 10 digits, which print in full (3000000000). Lists print as "LIST" and
   // iterators as "ITERATOR", like my_basic; objects print as their class name.
   std::string toString() const;
   // The type name used in error messages: BOOLEAN, INTEGER, STRING, ..., or an

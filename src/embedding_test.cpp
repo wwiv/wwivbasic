@@ -348,7 +348,8 @@ TEST(EmbeddingTest, WideIntegers) {
     i.globals().native_function("NEG_U32", [](std::uint32_t v) { return v; });
   };
   // Too big for an INTEGER: a REAL instead of a truncated value.
-  EXPECT_EQ("3e+09 42 4e+09\n", run_one(setup, "print big(); \" \"; small(); \" \"; u32()\n"));
+  EXPECT_EQ("3000000000 42 4000000000\n",
+            run_one(setup, "print big(); \" \"; small(); \" \"; u32()\n"));
   EXPECT_EQ("TRUE TRUE\n", run_one(setup, "print echo64(big()) = big(); \" \"; neg_u32(-5) = 0\n"));
 }
 
