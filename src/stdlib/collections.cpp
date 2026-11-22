@@ -26,7 +26,7 @@ void check_args(const char* fn, const Args& args, size_t min, size_t max) {
 
 // Returns the index as a size_t, or throws if it is out of range for a list
 // of size `size`. `allow_end` permits index == size (for INSERT).
-size_t checked_index(const char* fn, const Value& v, size_t size, bool allow_end = false) {
+size_t checked_index(std::string_view fn, const Value& v, size_t size, bool allow_end = false) {
   const auto i = v.toInt();
   const auto limit = allow_end ? size + 1 : size;
   if (i < 0 || static_cast<size_t>(i) >= limit) {
@@ -38,6 +38,11 @@ size_t checked_index(const char* fn, const Value& v, size_t size, bool allow_end
 constexpr size_t kMany = static_cast<size_t>(-1);
 
 } // namespace
+
+Value list_get(const Value& list, const Value& index, std::string_view fn) {
+  const auto& items = list.list(fn)->items;
+  return items[checked_index(fn, index, items.size())];
+}
 
 void register_collections(Module& m) {
   // LIST(a, b, ...) creates a new list holding its arguments.
@@ -128,8 +133,7 @@ void register_collections(Module& m) {
       }
       return items[static_cast<size_t>(it->pos)];
     }
-    const auto& items = args[0].list("GET")->items;
-    return items[checked_index("GET", args[1], items.size())];
+    return list_get(args[0], args[1], "GET");
   });
 
   // SET(l, index, v) replaces an item and returns the list.
@@ -148,11 +152,36 @@ void register_collections(Module& m) {
     return l;
   });
 
-  // SORT(l) sorts the list in place and returns it.
+  // SORT(l) sorts the list in place and returns it. Numbers (and booleans)
+  // sort before strings; numbers compare numerically, strings by character.
   m.native_functionl("SORT", [](const Args& args) {
     check_args("SORT", args, 1, 1);
     auto& items = args[0].list("SORT")->items;
-    std::stable_sort(items.begin(), items.end());
+    // 0 for numbers and booleans, 1 for strings; lists can't be sorted.
+    auto rank = [](const Value& v) {
+      switch (v.value_type()) {
+      case Value::Type::BOOLEAN:
+      case Value::Type::INTEGER:
+        return 0;
+      case Value::Type::STRING:
+        return 1;
+      case Value::Type::LIST:
+      case Value::Type::ITERATOR:
+        break;
+      }
+      throw BasicError(fmt::format("SORT: cannot sort a list containing a {}", v.type_name()));
+    };
+    for (const auto& v : items) {
+      rank(v);
+    }
+    std::stable_sort(items.begin(), items.end(), [&](const Value& a, const Value& b) {
+      const auto ra = rank(a);
+      const auto rb = rank(b);
+      if (ra != rb) {
+        return ra < rb;
+      }
+      return ra == 0 ? a.toInt() < b.toInt() : a.toString() < b.toString();
+    });
     return args[0];
   });
 

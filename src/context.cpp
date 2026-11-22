@@ -171,7 +171,17 @@ ResolvedFunction Context::find_function(const std::string& function_name) {
   throw BasicError(fmt::format("Unknown function '{}'", function_name));
 }
 
+std::filesystem::path Context::import_key(const std::filesystem::path& path) {
+  std::error_code ec;
+  auto key = std::filesystem::weakly_canonical(path, ec);
+  return ec ? path.lexically_normal() : key;
+}
+
+
 bool Context::add_source(const std::filesystem::path& path, const std::string& raw_text) {
+  if (contains(sources, path)) {
+    return true;
+  }
   auto text = raw_text;
   // Every statement ends in a newline, so make sure the last one does too.
   if (text.empty() || text.back() != '\n') {

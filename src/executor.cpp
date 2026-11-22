@@ -1,5 +1,6 @@
 #include "executor.h"
 #include "function_def_visitor.h"
+#include "stdlib/collections.h"
 #include "utils.h"
 #include "BasicLexer.h"
 #include "core/stl.h"
@@ -120,7 +121,7 @@ std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext*
         throw BasicError(fmt::format("{}(): a list index takes 1 argument, got {}", fn_name,
                                      params.size()));
       }
-      return call("GET", {v->value(), params.front()});
+      return stdlib::list_get(v->value(), params.front(), fn_name + "()");
     }
   }
   return call(fn_name, params);
@@ -168,22 +169,28 @@ void ExecutionVisitor::import_file(const std::string& name) {
   // Like WWIV's scripts directory, paths are relative to the importing script.
   const auto base = std::filesystem::path(filename_).parent_path();
   const auto path = (base / name).lexically_normal();
-  if (ec_.imported_files.contains(path)) {
-    // Each file is only loaded once, which also stops import cycles.
+  // Each file is only loaded once, which also stops import cycles. The entry
+  // script is registered by run_file/run_source, so a cycle back to it stops
+  // here too.
+  if (!ec_.imported_files.insert(Context::import_key(path)).second) {
     return;
   }
-  ec_.imported_files.insert(path);
   ec_.trace_log("IMPORT \"{}\"", path.string());
 
   const auto errors_before = ec_.errors.size();
-  ec_.add_source(path);
-  const auto tree = ec_.parseTree(path);
-  if (!tree || ec_.errors.size() != errors_before) {
+  // Reports every error added since errors_before.
+  auto import_error = [&]() {
     std::string msg = fmt::format("Unable to import '{}'", name);
     for (auto i = errors_before; i < ec_.errors.size(); i++) {
       msg += "\n  " + ec_.errors[i];
     }
-    throw BasicError(msg);
+    return BasicError(msg);
+  };
+
+  ec_.add_source(path);
+  const auto tree = ec_.parseTree(path);
+  if (!tree || ec_.errors.size() != errors_before) {
+    throw import_error();
   }
 
   // Imported functions are defined in the importing module (or the module a
@@ -198,7 +205,7 @@ void ExecutionVisitor::import_file(const std::string& name) {
   FunctionDefVisitor fd(ec_, path.string());
   fd.visit(tree.value());
   if (ec_.errors.size() != errors_before) {
-    throw BasicError(fmt::format("Unable to import '{}'\n  {}", name, ec_.errors.back()));
+    throw import_error();
   }
   ec_.module = saved_module;
 

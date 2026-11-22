@@ -253,6 +253,8 @@ public:
   // Adds a native module, replacing any existing module with the same name.
   Module& add_module(const std::string& name);
 
+  // Parses source text. A path that is already loaded is not replaced, since
+  // parse trees in use point into it.
   bool add_source(const std::filesystem::path& path, const std::string& text);
   bool add_source(const std::filesystem::path& path);
 
@@ -276,6 +278,10 @@ public:
   std::map<std::filesystem::path, std::unique_ptr<SourceUnit>> sources;
   // Source files loaded with IMPORT "file.bas", so each is only run once.
   std::set<std::filesystem::path> imported_files;
+
+  // The key used for imported_files: the canonical path if it can be found,
+  // so different spellings of the same file match.
+  static std::filesystem::path import_key(const std::filesystem::path& path);
   Module* root{ nullptr };
   Module* module{ nullptr };
   std::vector<std::string> errors;

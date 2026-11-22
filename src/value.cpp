@@ -163,7 +163,8 @@ Value Value::operator*(const Value& that) const {
   check_scalar(that, "*");
   switch (type) {
   case Type::BOOLEAN:
-    return Value(toBool() && that.toBool());
+    // TRUE * TRUE is 1, an INTEGER (as before lists were added).
+    return Value(static_cast<int>(toBool() && that.toBool()));
   case Type::INTEGER:
     return Value(toInt() * that.toInt());
   case Type::STRING:

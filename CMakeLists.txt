@@ -71,6 +71,29 @@ antlr4_generate(wwivbasic_parser
                 "${ANTLR4_TOKEN_DIRECTORY_wwivbasic_lexer}"
 )
  
+# Compiler warnings for our own code (src/). Warnings don't fail the build.
+# The generated ANTLR sources and the vendored core/ library are left alone.
+if(MSVC)
+  set(WWIVBASIC_WARNINGS /W4)
+  set(WWIVBASIC_NO_WARNINGS /W0)
+else()
+  set(WWIVBASIC_WARNINGS -Wall -Wextra)
+  set(WWIVBASIC_NO_WARNINGS -w)
+endif()
+
+# The generated lexer and parser, in their own target so they build without
+# our warning flags. Their headers are SYSTEM includes so their warnings don't
+# show up in our code either.
+add_library(wwivbasic_parser OBJECT
+            ${ANTLR4_SRC_FILES_wwivbasic_lexer}
+            ${ANTLR4_SRC_FILES_wwivbasic_parser}
+)
+target_include_directories(wwivbasic_parser SYSTEM PUBLIC ${ANTLR4_INCLUDE_DIR}
+                           ${ANTLR4_INCLUDE_DIR_wwivbasic_lexer}
+                           ${ANTLR4_INCLUDE_DIR_wwivbasic_parser})
+target_link_libraries(wwivbasic_parser PUBLIC ${WWIVBASIC_ANTLR_LIB})
+target_compile_options(wwivbasic_parser PRIVATE ${WWIVBASIC_NO_WARNINGS})
+
 add_library(wwivbasic_interpreter
             "src/context.cpp"
             "src/executor.cpp"
@@ -82,9 +105,9 @@ add_library(wwivbasic_interpreter
             "src/stdlib/common.cpp"
             "src/stdlib/numbers.cpp"
             "src/stdlib/strings.cpp"
-            ${ANTLR4_SRC_FILES_wwivbasic_lexer} 
-            ${ANTLR4_SRC_FILES_wwivbasic_parser}
 )
+target_link_libraries(wwivbasic_interpreter wwivbasic_parser fmt::fmt core)
+target_compile_definitions(wwivbasic_interpreter PUBLIC _CRT_SECURE_NO_WARNINGS)
 
 add_executable(wwivbasic_tests
                "src/utils_test.cpp"
@@ -93,27 +116,6 @@ add_executable(wwivbasic_tests
 )
 
 target_link_libraries(wwivbasic_tests PRIVATE GTest::gtest_main wwivbasic_interpreter)
-
-
-# The generated lexer/parser headers are SYSTEM so their warnings don't show
-# up in our code.
-target_include_directories(wwivbasic_interpreter SYSTEM PUBLIC ${ANTLR4_INCLUDE_DIR}
-                           ${ANTLR4_INCLUDE_DIR_wwivbasic_lexer}
-                           ${ANTLR4_INCLUDE_DIR_wwivbasic_parser})
-target_link_libraries(wwivbasic_interpreter ${WWIVBASIC_ANTLR_LIB} fmt::fmt core)
-target_compile_definitions(wwivbasic_interpreter PUBLIC _CRT_SECURE_NO_WARNINGS)
-
-# Compiler warnings for our own code (src/). Warnings don't fail the build.
-# The generated ANTLR sources and the vendored core/ library are left alone.
-if(MSVC)
-  set(WWIVBASIC_WARNINGS /W4)
-  set(WWIVBASIC_NO_WARNINGS /W0)
-else()
-  set(WWIVBASIC_WARNINGS -Wall -Wextra)
-  set(WWIVBASIC_NO_WARNINGS -w)
-endif()
-set_source_files_properties(${ANTLR4_SRC_FILES_wwivbasic_lexer} ${ANTLR4_SRC_FILES_wwivbasic_parser}
-                            PROPERTIES COMPILE_OPTIONS "${WWIVBASIC_NO_WARNINGS}")
 
 
 add_executable(basicrun

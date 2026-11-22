@@ -362,3 +362,48 @@ TEST_F(InterpreterTest, LenOfString) {
 TEST_F(InterpreterTest, Str) {
   EXPECT_EQ("12ab\n", run("print str(12) + \"ab\"\n"));
 }
+
+TEST_F(InterpreterTest, ImportOnlyAtTopLevel) {
+  // IMPORT is a top-level statement; inside a function it's a parse error.
+  run("def f()\nimport \"x.bas\"\nenddef\n");
+  ASSERT_FALSE(errors.empty());
+  EXPECT_EQ(0u, errors.front().rfind("test.bas:2:1: error:", 0)) << errors.front();
+}
+
+TEST_F(InterpreterTest, ListIndexIgnoresScriptGet) {
+  // l(i) reads the list even if the module defines its own GET.
+  const std::string script = R"(
+module "m"
+def get(a, b)
+  return "mine"
+enddef
+l = list("item")
+print l(0); " "; m.get(1, 2)
+)";
+  EXPECT_EQ("item mine\n", run(script));
+  EXPECT_TRUE(errors.empty()) << errors.front();
+}
+
+TEST_F(InterpreterTest, SortMixedTypes) {
+  const std::string script = R"(
+l = sort(list("b", 10, "a", 2, true))
+for x in l
+  print x; " ";
+next
+)";
+  EXPECT_EQ("TRUE 2 10 a b ", run(script));
+}
+
+TEST_F(InterpreterTest, SortRejectsNestedLists) {
+  run("l = list(1, list())\nsort(l)\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:2: error: SORT: cannot sort a list containing a LIST", errors.front());
+}
+
+TEST_F(InterpreterTest, BooleanTimesIsInteger) {
+  EXPECT_EQ("1 0\n", run("print true * true; \" \"; true * false\n"));
+}
+
+TEST_F(InterpreterTest, LenWithNoArgs) {
+  EXPECT_EQ("0\n", run("print len()\n"));
+}

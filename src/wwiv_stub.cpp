@@ -5,6 +5,7 @@
 #include "core/strings.h"
 #include "fmt/format.h"
 
+#include <algorithm>
 #include <istream>
 #include <string>
 
