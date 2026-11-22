@@ -87,6 +87,8 @@ jobs:
         run: |
           if [ -n "$(git status --porcelain -- generated)" ]; then
             git status --short -- generated
+            git diff --stat -- generated
+            git diff -- generated | head -60
             echo "::error::generated/ is out of date: rebuild with Java and commit the regenerated parser."
             exit 1
           fi
