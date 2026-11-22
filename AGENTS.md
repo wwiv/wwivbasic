@@ -65,7 +65,9 @@ Before you finish a change, build it and make sure `ctest` passes.
 
 ## Code style
 
-- C++23 (GCC 14 or newer, or a current MSVC; CMake 3.20 or newer). Format with the repo's
+- C++23 (GCC 14 or newer, or a current MSVC; CMake 3.20 or newer). Our code builds with
+  `-Wall -Wextra` (`/W4` on MSVC); keep it warning-free. Generated ANTLR code and `core/` are
+  excluded. Format with the repo's
   `.clang-format` (LLVM base, 2-space indent, 100 columns, `int* p` pointer alignment).
 - Under C++20 and later, fmt checks format strings at compile time, so a `{}` without a
   matching argument is a build error. Use `fmt::runtime(s)` only for genuinely dynamic formats.

@@ -95,11 +95,25 @@ add_executable(wwivbasic_tests
 target_link_libraries(wwivbasic_tests PRIVATE GTest::gtest_main wwivbasic_interpreter)
 
 
-target_include_directories(wwivbasic_interpreter PUBLIC ${ANTLR4_INCLUDE_DIR} 
-                           ${ANTLR4_INCLUDE_DIR_wwivbasic_lexer} 
+# The generated lexer/parser headers are SYSTEM so their warnings don't show
+# up in our code.
+target_include_directories(wwivbasic_interpreter SYSTEM PUBLIC ${ANTLR4_INCLUDE_DIR}
+                           ${ANTLR4_INCLUDE_DIR_wwivbasic_lexer}
                            ${ANTLR4_INCLUDE_DIR_wwivbasic_parser})
 target_link_libraries(wwivbasic_interpreter ${WWIVBASIC_ANTLR_LIB} fmt::fmt core)
 target_compile_definitions(wwivbasic_interpreter PUBLIC _CRT_SECURE_NO_WARNINGS)
+
+# Compiler warnings for our own code (src/). Warnings don't fail the build.
+# The generated ANTLR sources and the vendored core/ library are left alone.
+if(MSVC)
+  set(WWIVBASIC_WARNINGS /W4)
+  set(WWIVBASIC_NO_WARNINGS /W0)
+else()
+  set(WWIVBASIC_WARNINGS -Wall -Wextra)
+  set(WWIVBASIC_NO_WARNINGS -w)
+endif()
+set_source_files_properties(${ANTLR4_SRC_FILES_wwivbasic_lexer} ${ANTLR4_SRC_FILES_wwivbasic_parser}
+                            PROPERTIES COMPILE_OPTIONS "${WWIVBASIC_NO_WARNINGS}")
 
 
 add_executable(basicrun
@@ -135,3 +149,7 @@ add_test(NAME basicrun.dot_relative_path
          COMMAND basicrun ./for.bas
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/golden)
 set_tests_properties(basicrun.dot_relative_path PROPERTIES PASS_REGULAR_EXPRESSION "^1\n2\n")
+
+foreach(target wwivbasic_interpreter wwivbasic_tests basicrun)
+  target_compile_options(${target} PRIVATE ${WWIVBASIC_WARNINGS})
+endforeach()
