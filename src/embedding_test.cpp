@@ -5,7 +5,10 @@
 #include "wwivbasic/interpreter.h"
 #include "wwivbasic/stdio_console.h"
 
+#include <cstdint>
+#include <functional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 using namespace wwivbasic;
@@ -199,8 +202,8 @@ b = a
 print a = b; " "; a.header(0) = a.header(0); " "; a
 )bas");
   ASSERT_TRUE(result.ok()) << result.errors.front();
-  // Two wraps of the same header are different values; printing shows the class.
-  EXPECT_EQ("TRUE FALSE area\n", out.str());
+  // Two wraps of the same C++ header are equal; printing shows the class.
+  EXPECT_EQ("TRUE TRUE area\n", out.str());
 }
 
 TEST_F(ObjectTest, Errors) {
@@ -246,7 +249,8 @@ TEST_F(ObjectTest, ErrorFromNativeCode) {
 TEST_F(ObjectTest, ObjectsCantBeUsedInArithmeticOrSorted) {
   const auto r = run("a = msgs.open_area(\"general\")\nprint a + 1\n");
   ASSERT_EQ(1u, r.errors.size());
-  EXPECT_EQ("viewer.bas:2: error: Operator '+' cannot be used with an area", r.errors.front());
+  EXPECT_EQ("viewer.bas:2: error: Operator '+' cannot be used with an object of class area",
+            r.errors.front());
 }
 
 TEST(EmbeddingTest, NativeFunctionTakingConstStringRef) {
@@ -260,4 +264,131 @@ TEST(EmbeddingTest, NativeFunctionTakingConstStringRef) {
       "SHOUT", [](const std::string& s) { return s + std::string(3, '!'); });
   ASSERT_TRUE(interp.run_source("t.bas", "print shout(\"a fairly long string, past SSO\")\n").ok());
   EXPECT_EQ("a fairly long string, past SSO!!!\n", out.str());
+}
+
+// PR #7 review fixes.
+
+TEST_F(ObjectTest, WrapNullIsAScriptError) {
+  auto& msgs = interp.add_module("msgs");
+  auto& nothing = msgs.class_<Header>("nothing");
+  msgs.native_function("FIND", [&nothing]() { return nothing.wrap(std::shared_ptr<Header>()); });
+  const auto r = run("print 1\nh = msgs.find()\n");
+  ASSERT_EQ(1u, r.errors.size());
+  EXPECT_EQ("viewer.bas:2: error: nothing: no object (null)", r.errors.front());
+}
+
+TEST_F(ObjectTest, AddModuleAgainKeepsBindings) {
+  // Getting the module again must not destroy its classes, which the native
+  // functions registered in the fixture captured by reference.
+  auto& again = interp.add_module("msgs");
+  again.native_function("EXTRA", []() { return 1; });
+  const auto r = run("a = msgs.open_area(\"general\")\nprint a.header(0).subject; msgs.extra()\n");
+  ASSERT_TRUE(r.ok()) << r.errors.front();
+  EXPECT_EQ("Hello1\n", out.str());
+}
+
+TEST_F(ObjectTest, CppExceptionsBecomeScriptErrors) {
+  // area.header(5) uses std::vector::at, which throws std::out_of_range.
+  const auto r = run("a = msgs.open_area(\"general\")\nprint a.header(5)\n");
+  ASSERT_EQ(1u, r.errors.size());
+  EXPECT_EQ(0u, r.errors.front().rfind("viewer.bas:2: error: area.header: ", 0))
+      << r.errors.front();
+}
+
+TEST_F(ObjectTest, ExistsFindsTheSameObject) {
+  const auto r = run(
+      "a = msgs.open_area(\"general\")\n"
+      "print exists(a.headers(), a.header(1)); index_of(a.headers(), a.header(1))\n");
+  ASSERT_TRUE(r.ok()) << r.errors.front();
+  EXPECT_EQ("TRUE1\n", out.str());
+}
+
+TEST_F(ObjectTest, SetterRejectsObjects) {
+  const auto r = run("a = msgs.open_area(\"general\")\nh = a.header(0)\nh.subject = a\n");
+  ASSERT_EQ(1u, r.errors.size());
+  EXPECT_EQ("viewer.bas:3: error: header.subject: expected a STRING, got an object of class area",
+            r.errors.front());
+}
+
+namespace {
+
+struct Counter {
+  int n{0};
+  int next() noexcept { return ++n; }
+};
+
+// Runs a one-line script with a fresh interpreter; returns output or errors.
+std::string run_one(const std::function<void(Interpreter&)>& setup, const std::string& script) {
+  std::ostringstream out;
+  std::istringstream in;
+  StdioConsole console(out, in);
+  Interpreter interp(console);
+  setup(interp);
+  const auto r = interp.run_source("t.bas", script);
+  return r.ok() ? out.str() : r.errors.front();
+}
+
+} // namespace
+
+TEST(EmbeddingTest, NativeExceptionsBecomeScriptErrors) {
+  auto setup = [](Interpreter& i) {
+    i.globals().native_function("FAIL", []() -> int { throw std::runtime_error("disk full"); });
+    i.globals().native_function("WEIRD", []() -> int { throw 42; });
+  };
+  EXPECT_EQ("t.bas:1: error: FAIL: disk full", run_one(setup, "print fail()\n"));
+  EXPECT_EQ("t.bas:1: error: WEIRD: unknown C++ exception", run_one(setup, "print weird()\n"));
+}
+
+TEST(EmbeddingTest, WideIntegers) {
+  auto setup = [](Interpreter& i) {
+    i.globals().native_function("BIG", []() { return std::int64_t{3000000000}; });
+    i.globals().native_function("SMALL", []() { return std::int64_t{42}; });
+    i.globals().native_function("U32", []() { return std::uint32_t{4000000000u}; });
+    i.globals().native_function("ECHO64", [](std::int64_t v) { return v; });
+    i.globals().native_function("NEG_U32", [](std::uint32_t v) { return v; });
+  };
+  // Too big for an INTEGER: a REAL instead of a truncated value.
+  EXPECT_EQ("3e+09 42 4e+09\n", run_one(setup, "print big(); \" \"; small(); \" \"; u32()\n"));
+  EXPECT_EQ("TRUE TRUE\n", run_one(setup, "print echo64(big()) = big(); \" \"; neg_u32(-5) = 0\n"));
+}
+
+TEST(EmbeddingTest, NoexceptFunctionsAndMethods) {
+  auto setup = [](Interpreter& i) {
+    auto& m = i.add_module("m");
+    auto& counter = m.class_<Counter>("counter");
+    counter.method("next", &Counter::next)
+        .method("peek", [](const Counter& c) noexcept { return c.n; });
+    m.native_function("NEW", [&counter]() noexcept { return counter.wrap(Counter{}); });
+  };
+  EXPECT_EQ("121\n", run_one(setup, "c = m.new()\nprint c.next(); c.next(); c.peek() - 1\n"));
+}
+
+TEST(EmbeddingTest, VectorOfBool) {
+  auto setup = [](Interpreter& i) {
+    i.globals().native_function("FLAGS", []() { return std::vector<bool>{true, false}; });
+  };
+  EXPECT_EQ("2 TRUE FALSE\n",
+            run_one(setup, "f = flags()\nprint len(f); \" \"; f(0); \" \"; f(1)\n"));
+}
+
+TEST(EmbeddingTest, ListArgumentWhereStringExpected) {
+  auto setup = [](Interpreter& i) {
+    i.globals().native_function("SHOUT", [](const std::string& s) { return s + "!"; });
+  };
+  EXPECT_EQ("t.bas:1: error: SHOUT: expected a STRING, got a LIST",
+            run_one(setup, "print shout(list())\n"));
+}
+
+TEST(EmbeddingTest, KeywordsAsMemberNames) {
+  // Names after a dot can be keywords: module functions like wwiv.io.print,
+  // and methods or properties like obj.next() and obj.end.
+  auto setup = [](Interpreter& i) {
+    i.add_module("wwiv.io").native_function("PRINT", [](std::string s) { return "[" + s + "]"; });
+    auto& m = i.add_module("m");
+    auto& counter = m.class_<Counter>("counter");
+    counter.method("next", &Counter::next).property("end", [](const Counter& c) { return c.n; });
+    m.native_function("NEW", [&counter]() { return counter.wrap(Counter{}); });
+  };
+  EXPECT_EQ("[x]1 1\n",
+            run_one(setup, "c = m.new()\nprint wwiv.io.print(\"x\"); c.next(); \" \"; c.end\n"));
 }

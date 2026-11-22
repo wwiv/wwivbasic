@@ -11,6 +11,8 @@
 
 #include <deque>
 #include <functional>
+#include <cmath>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -33,18 +35,56 @@ class FunctionDefVisitor;
 // A native function that takes its arguments as a vector.
 using basic_function_fn = std::function<Value(std::vector<Value>)>;
 
+namespace detail {
+
+// Throws unless v can be converted to the scalar type `expected`: lists,
+// iterators and objects can't be used as numbers, strings or booleans.
+inline void check_scalar_argument(const Value& v, const char* expected) {
+  if (v.is_list() || v.is_iterator() || v.is_object()) {
+    throw ArgumentError(fmt::format("expected {}, got {}", expected, v.a_type_name()));
+  }
+}
+
+// True for integer types that fit in a script INTEGER (a 32-bit int).
+template <class D> constexpr bool fits_in_int() {
+  if constexpr (!std::is_integral_v<D>) {
+    return false;
+  } else {
+    return std::cmp_less_equal(std::numeric_limits<D>::max(), std::numeric_limits<int>::max()) &&
+           std::cmp_greater_equal(std::numeric_limits<D>::min(), std::numeric_limits<int>::min());
+  }
+}
+
+} // namespace detail
+
 // Converts a script Value into the C++ type a native function expects.
+// Integer types wider than int (int64_t, time_t, uint32_t) are converted
+// through a double and clamped to the type's range.
 template <typename T> T from_value(const Value& v) {
   using D = std::decay_t<T>;
   if constexpr (std::is_same_v<D, Value>) {
     return v;
   } else if constexpr (std::is_same_v<D, bool>) {
+    detail::check_scalar_argument(v, "a BOOLEAN");
     return v.toBool();
-  } else if constexpr (std::is_integral_v<D>) {
+  } else if constexpr (detail::fits_in_int<D>()) {
+    detail::check_scalar_argument(v, "an INTEGER");
     return static_cast<D>(v.toInt());
+  } else if constexpr (std::is_integral_v<D>) {
+    detail::check_scalar_argument(v, "an INTEGER");
+    const auto d = v.toDouble();
+    if (std::isnan(d) || d <= static_cast<double>(std::numeric_limits<D>::min())) {
+      return std::numeric_limits<D>::min();
+    }
+    if (d >= static_cast<double>(std::numeric_limits<D>::max())) {
+      return std::numeric_limits<D>::max();
+    }
+    return static_cast<D>(d);
   } else if constexpr (std::is_floating_point_v<D>) {
+    detail::check_scalar_argument(v, "a REAL");
     return static_cast<D>(v.toDouble());
   } else if constexpr (std::is_same_v<D, std::string>) {
+    detail::check_scalar_argument(v, "a STRING");
     return v.toString();
   } else {
     static_assert(sizeof(D) == 0, "Unsupported native function parameter type");
@@ -56,24 +96,27 @@ template <class T> struct is_vector : std::false_type {};
 template <class T, class A> struct is_vector<std::vector<T, A>> : std::true_type {};
 } // namespace detail
 
-// Converts a native function's return value into a script Value. A
-// std::vector becomes a LIST of its converted items.
+// Converts a native function's return value into a script Value. Integers
+// that don't fit in an INTEGER become REALs. A std::vector becomes a LIST of
+// its converted items.
 template <typename R> Value to_value(R&& r) {
   using D = std::decay_t<R>;
   if constexpr (std::is_same_v<D, Value>) {
     return r;
   } else if constexpr (std::is_same_v<D, bool>) {
     return Value(static_cast<bool>(r));
-  } else if constexpr (std::is_integral_v<D>) {
+  } else if constexpr (detail::fits_in_int<D>()) {
     return Value(static_cast<int>(r));
-  } else if constexpr (std::is_floating_point_v<D>) {
-    // Whole results become INTEGERs, as in arithmetic.
+  } else if constexpr (std::is_integral_v<D> || std::is_floating_point_v<D>) {
+    // Whole results that fit become INTEGERs, as in arithmetic.
     return Value::number(static_cast<double>(r));
   } else if constexpr (detail::is_vector<D>::value) {
     std::vector<Value> items;
     items.reserve(r.size());
-    for (auto& item : r) {
-      items.push_back(to_value(item));
+    // Convert each item to the element type first, so std::vector<bool>'s
+    // proxy references become bools.
+    for (auto&& item : r) {
+      items.push_back(to_value(static_cast<typename D::value_type>(item)));
     }
     return Value::make_list(std::move(items));
   } else {
@@ -98,6 +141,22 @@ struct AsFunction<ReturnType (Class::*)(Args...) const> {
   using type = std::function<ReturnType(Args...)>;
 };
 
+// noexcept functions and lambdas.
+template <class ReturnType, class... Args> struct AsFunction<ReturnType (*)(Args...) noexcept> {
+  using type = std::function<ReturnType(Args...)>;
+};
+
+template <class Class, class ReturnType, class... Args>
+struct AsFunction<ReturnType (Class::*)(Args...) const noexcept> {
+  using type = std::function<ReturnType(Args...)>;
+};
+
+// Mutable lambdas.
+template <class Class, class ReturnType, class... Args>
+struct AsFunction<ReturnType (Class::*)(Args...)> {
+  using type = std::function<ReturnType(Args...)>;
+};
+
 // Makes functions, function pointers and lambdas into a std::function.
 template <class F> auto as_fn(F f) -> typename AsFunction<F>::type { return {f}; }
 
@@ -119,7 +178,11 @@ basic_function_fn make_basic_fn(const std::string& name, std::function<R(Args...
       throw BasicError(fmt::format("{}: expected {} argument(s), got {}", name, sizeof...(Args),
                                    params.size()));
     }
-    return call_native(f, params, std::index_sequence_for<Args...>{});
+    try {
+      return call_native(f, params, std::index_sequence_for<Args...>{});
+    } catch (const ArgumentError& e) {
+      throw BasicError(fmt::format("{}: {}", name, e.what()));
+    }
   };
 }
 

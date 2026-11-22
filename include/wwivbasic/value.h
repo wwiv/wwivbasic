@@ -23,6 +23,13 @@ public:
   size_t line{0};
 };
 
+// A native function or method argument (or a property value) had the wrong
+// type. The wrappers add the function's name to the message.
+class ArgumentError : public BasicError {
+public:
+  explicit ArgumentError(const std::string& msg) : BasicError(msg) {}
+};
+
 class Value;
 struct ListData;
 struct ObjectData;
@@ -102,7 +109,8 @@ public:
   // The type name used in error messages: BOOLEAN, INTEGER, STRING, ..., or an
   // object's class name.
   std::string type_name() const;
-  // The type name with "a" or "an": "a STRING", "an INTEGER", "an area".
+  // The type name with "a" or "an": "a STRING", "an INTEGER", or "an object
+  // of class user" for objects.
   std::string a_type_name() const;
 
   template <typename T>

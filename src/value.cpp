@@ -76,10 +76,14 @@ ObjectPtr Value::object(std::string_view fn) const {
 }
 
 std::string Value::a_type_name() const {
+  if (type == Type::OBJECT) {
+    // Class names are the embedder's, so don't guess "a" or "an".
+    return "an object of class " + type_name();
+  }
+  // The built-in type names; only INTEGER and ITERATOR start with a vowel.
   const auto name = type_name();
   const bool vowel =
-      !name.empty() &&
-      std::string_view("AEIOUaeiou").find(name.front()) != std::string_view::npos;
+      !name.empty() && std::string_view("AEIOU").find(name.front()) != std::string_view::npos;
   return (vowel ? "an " : "a ") + name;
 }
 
@@ -496,9 +500,17 @@ bool Value::operator==(const Value& that) const {
     break;
   case Type::LIST:
   case Type::ITERATOR:
-  case Type::OBJECT:
-    // Same type and the same underlying object.
+    // Same type and the same underlying list.
     return type == that.type && value_ == that.value_;
+  case Type::OBJECT: {
+    // The same C++ object, even if it was wrapped twice.
+    if (that.type != Type::OBJECT) {
+      return false;
+    }
+    const auto& a = std::get<ObjectPtr>(value_);
+    const auto& b = std::get<ObjectPtr>(that.value_);
+    return a && b && a->self.get() == b->self.get() && a->cls == b->cls;
+  }
   }
   if (compare_numerically(*this, that)) {
     return toDouble() == that.toDouble();

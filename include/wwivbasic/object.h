@@ -62,41 +62,45 @@ struct ObjectData {
 
 namespace detail {
 
+// Member function pointer traits: turns &T::f into a lambda taking (T&, args).
+// One specialization per const/noexcept combination.
 template <class M> struct MemberFunction;
 
-template <class C, class R, class... Args> struct MemberFunction<R (C::*)(Args...)> {
-  using Result = R;
+template <class C, class R, class... Args> struct MemberFunctionBase {
   template <class F> static auto as_lambda(F f) {
     return [f](C& o, Args... args) -> R { return (o.*f)(std::forward<Args>(args)...); };
   }
 };
 
-template <class C, class R, class... Args> struct MemberFunction<R (C::*)(Args...) const> {
+template <class C, class R, class... Args>
+struct MemberFunction<R (C::*)(Args...)> : MemberFunctionBase<C, R, Args...> {};
+template <class C, class R, class... Args>
+struct MemberFunction<R (C::*)(Args...) const> : MemberFunctionBase<C, R, Args...> {};
+template <class C, class R, class... Args>
+struct MemberFunction<R (C::*)(Args...) noexcept> : MemberFunctionBase<C, R, Args...> {};
+template <class C, class R, class... Args>
+struct MemberFunction<R (C::*)(Args...) const noexcept> : MemberFunctionBase<C, R, Args...> {};
+
+// Callable traits for lambdas and function pointers: result, arguments, arity.
+template <class R, class... Args> struct CallableBase {
   using Result = R;
-  template <class F> static auto as_lambda(F f) {
-    return [f](C& o, Args... args) -> R { return (o.*f)(std::forward<Args>(args)...); };
-  }
+  using ArgsTuple = std::tuple<Args...>;
+  static constexpr size_t arity = sizeof...(Args);
 };
 
 template <class F> struct Callable : Callable<decltype(&F::operator())> {};
 
-template <class C, class R, class... Args> struct Callable<R (C::*)(Args...) const> {
-  using Result = R;
-  using ArgsTuple = std::tuple<Args...>;
-  static constexpr size_t arity = sizeof...(Args);
-};
-
-template <class C, class R, class... Args> struct Callable<R (C::*)(Args...)> {
-  using Result = R;
-  using ArgsTuple = std::tuple<Args...>;
-  static constexpr size_t arity = sizeof...(Args);
-};
-
-template <class R, class... Args> struct Callable<R (*)(Args...)> {
-  using Result = R;
-  using ArgsTuple = std::tuple<Args...>;
-  static constexpr size_t arity = sizeof...(Args);
-};
+template <class C, class R, class... Args>
+struct Callable<R (C::*)(Args...)> : CallableBase<R, Args...> {};
+template <class C, class R, class... Args>
+struct Callable<R (C::*)(Args...) const> : CallableBase<R, Args...> {};
+template <class C, class R, class... Args>
+struct Callable<R (C::*)(Args...) noexcept> : CallableBase<R, Args...> {};
+template <class C, class R, class... Args>
+struct Callable<R (C::*)(Args...) const noexcept> : CallableBase<R, Args...> {};
+template <class R, class... Args> struct Callable<R (*)(Args...)> : CallableBase<R, Args...> {};
+template <class R, class... Args>
+struct Callable<R (*)(Args...) noexcept> : CallableBase<R, Args...> {};
 
 // Calls f(self, args converted from params...). The first parameter of f is
 // the object; the rest are converted with from_value.
@@ -169,16 +173,24 @@ public:
               throw BasicError(fmt::format("{}.{}: expected {} argument(s), got {}", cls, name,
                                            nargs, params.size()));
             }
-            return detail::call_with_self(f, *static_cast<T*>(p), params,
-                                          std::make_index_sequence<nargs>{});
+            try {
+              return detail::call_with_self(f, *static_cast<T*>(p), params,
+                                            std::make_index_sequence<nargs>{});
+            } catch (const ArgumentError& e) {
+              throw BasicError(fmt::format("{}.{}: {}", cls, name, e.what()));
+            }
           });
       return *this;
     }
   }
 
   // Makes a script value that refers to `object`. The object stays alive while
-  // scripts hold it.
+  // scripts hold it. A null pointer is a script error; to return "nothing",
+  // return an empty Value() instead.
   Value wrap(std::shared_ptr<T> object) const {
+    if (!object) {
+      throw BasicError(fmt::format("{}: no object (null)", info_->name));
+    }
     auto data = std::make_shared<ObjectData>();
     data->self = std::move(object);
     data->cls = info_;
