@@ -116,12 +116,12 @@ ifStatement
 ;
 
 forStatement
-  : FOR ID EQ expr TO expr (STEP expr)? eos statements NEXT ID? eos
+  : FOR qualifiedName EQ expr TO expr (STEP expr)? eos statements NEXT qualifiedName? eos
 ;
 
 // FOR x IN l ... NEXT runs the body once for each item of the list l.
 forInStatement
-  : FOR ID IN expr eos statements NEXT ID? eos
+  : FOR qualifiedName IN expr eos statements NEXT qualifiedName? eos
 ;
 
 whileStatement

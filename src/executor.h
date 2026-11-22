@@ -68,10 +68,17 @@ private:
   Value eval(BasicParser::ExprContext* e);
   // Runs a loop body; returns false if the loop must stop (EXIT/RETURN/END).
   bool run_loop_body(BasicParser::StatementsContext* body);
-  // True if a dotted name's prefix is a module (wwiv.io.outstr, m.x).
-  bool is_module_path(const std::string& name) const;
-  // The value of the variable that starts a member path such as obj.a.b.
-  Value member_path_root(const std::vector<std::string>& parts, const std::string& name);
+  // A dotted name split into the variable it starts with and the members
+  // after it. `variable` is "x", or "m.x" for module m's variable x.
+  struct NamePath {
+    std::string variable;
+    std::vector<std::string> members;
+  };
+  // Resolves a dotted name: the longest prefix that names a module, then
+  // that module's variable; otherwise the first part is a variable.
+  NamePath resolve_name(const std::string& name) const;
+  // The value of a path's variable, or an error if there is none.
+  Value path_variable(const NamePath& path, const std::string& name);
   // Members and methods of values (obj.name, obj.name = v, obj.name(args)).
   // No values have members yet; these raise errors. See docs/PLAN.md (M3).
   Value get_member(const Value& object, const std::string& member);

@@ -527,3 +527,48 @@ TEST_F(InterpreterTest, ValOfNonDecimal) {
   EXPECT_EQ("0 0 -2.5 1\n", run("print val(\"nan\"); \" \"; val(\"0x10\"); \" \"; "
                                 "val(\" -2.5\"); \" \"; 1 + \"0x10\"\n"));
 }
+
+// Dotted names through module variables (PR #6 review).
+
+TEST_F(InterpreterTest, IndexListInModule) {
+  EXPECT_EQ("20\n", run("module \"m\"\nm.items = list(10, 20)\nprint m.items(1)\n"));
+  EXPECT_TRUE(errors.empty()) << errors.front();
+}
+
+TEST_F(InterpreterTest, MemberOfModuleVariable) {
+  // m.items is found as module m's variable; .x is then a member of the LIST.
+  run("module \"m\"\nm.items = list()\nprint m.items.x\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:3: error: Cannot read member 'x' of a LIST", errors.front());
+}
+
+TEST_F(InterpreterTest, LongestModulePrefixWins) {
+  interp.add_module("wwiv");
+  interp.add_module("wwiv.io").native_function("NAME", []() { return std::string("io"); });
+  EXPECT_EQ("io\n", run("print wwiv.io.name()\n"));
+  EXPECT_TRUE(errors.empty()) << errors.front();
+}
+
+TEST_F(InterpreterTest, UnknownSubmoduleNamesTheWholePrefix) {
+  interp.add_module("wwiv");
+  run("wwiv.nosuchsub.foo()\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:1: error: Unknown variable or module 'wwiv.nosuchsub' in "
+            "'wwiv.nosuchsub.foo'",
+            errors.front());
+}
+
+TEST_F(InterpreterTest, UnsetModuleVariableReadsEmpty) {
+  EXPECT_EQ("[]\n", run("module \"m\"\nprint \"[\" + m.nosuch + \"]\"\n"));
+}
+
+TEST_F(InterpreterTest, ForWithModuleVariable) {
+  EXPECT_EQ("12", run("module \"m\"\nfor m.i = 1 to 2\nprint m.i;\nnext m.i\n"));
+  EXPECT_TRUE(errors.empty()) << errors.front();
+}
+
+TEST_F(InterpreterTest, NextMustMatchFor) {
+  run("for i = 1 to 2\nnext j\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:1: error: NEXT j does not match FOR i", errors.front());
+}
