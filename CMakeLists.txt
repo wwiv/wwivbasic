@@ -78,6 +78,7 @@ add_library(wwivbasic_interpreter
             "src/interpreter.cpp"
             "src/utils.cpp"
             "src/value.cpp"
+            "src/stdlib/collections.cpp"
             "src/stdlib/common.cpp"
             "src/stdlib/numbers.cpp"
             "src/stdlib/strings.cpp"
@@ -102,7 +103,8 @@ target_compile_definitions(wwivbasic_interpreter PUBLIC _CRT_SECURE_NO_WARNINGS)
 
 
 add_executable(basicrun
-               "src/basicrun.cpp")
+               "src/basicrun.cpp"
+               "src/wwiv_stub.cpp")
 target_link_libraries(basicrun wwivbasic_interpreter)
 
 # Unit tests
@@ -110,7 +112,11 @@ include(GoogleTest)
 gtest_discover_tests(wwivbasic_tests)
 
 # Golden tests: each tests/golden/NAME.bas is run with basicrun and its stdout
-# compared with NAME.expected. See tests/run_golden.cmake.
+# compared with NAME.expected; NAME.input, if present, is its stdin. See
+# tests/run_golden.cmake.
+# Golden tests without a NAME.input file get this empty file as stdin.
+set(WWIVBASIC_EMPTY_INPUT "${CMAKE_CURRENT_BINARY_DIR}/golden_empty.input")
+file(WRITE "${WWIVBASIC_EMPTY_INPUT}" "")
 file(GLOB WWIVBASIC_GOLDEN_SCRIPTS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/golden/*.bas")
 foreach(script ${WWIVBASIC_GOLDEN_SCRIPTS})
   get_filename_component(name "${script}" NAME_WE)
@@ -120,6 +126,7 @@ foreach(script ${WWIVBASIC_GOLDEN_SCRIPTS})
                    -DBASICRUN=$<TARGET_FILE:basicrun>
                    -DSCRIPT=${script}
                    -DEXPECTED=${dir}/${name}.expected
+                   -DEMPTY_INPUT=${WWIVBASIC_EMPTY_INPUT}
                    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_golden.cmake)
 endforeach()
 

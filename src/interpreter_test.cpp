@@ -257,3 +257,108 @@ TEST_F(InterpreterTest, DuplicateFunctionIsAnError) {
   ASSERT_EQ(1u, errors.size());
   EXPECT_EQ("test.bas:3: error: function 'f' is already defined", errors.front());
 }
+
+// Lists (M2)
+
+TEST_F(InterpreterTest, ListBasics) {
+  const std::string script = R"(
+l = list("a", "b")
+push(l, "c")
+print len(l); " "; get(l, 0); get(l, 2); " "; l(1)
+print l
+)";
+  EXPECT_EQ("3 ac b\nLIST\n", run(script));
+  EXPECT_TRUE(errors.empty()) << errors.front();
+}
+
+TEST_F(InterpreterTest, ListsAreReferences) {
+  const std::string script = R"(
+def fill(target)
+  push(target, 1, 2)
+enddef
+a = list()
+b = a
+fill(b)
+print len(a); " "; a = b
+c = clone(a)
+push(c, 3)
+print len(a); len(c); " "; a = c
+)";
+  EXPECT_EQ("2 TRUE\n23 FALSE\n", run(script));
+}
+
+TEST_F(InterpreterTest, ListEditing) {
+  const std::string script = R"(
+l = list(3, 1, 2)
+sort(l)
+insert(l, 0, 0)
+set(l, 3, 9)
+remove(l, 1)
+print get(l, 0); get(l, 1); get(l, 2); " "; pop(l); back(l); " "; len(l)
+print exists(l, 2); " "; index_of(l, 2); index_of(l, 42)
+clear(l)
+print len(l)
+)";
+  EXPECT_EQ("029 92 2\nTRUE 1-1\n0\n", run(script));
+  EXPECT_TRUE(errors.empty()) << errors.front();
+}
+
+TEST_F(InterpreterTest, Iterator) {
+  const std::string script = R"(
+l = list("x", "y")
+i = iterator(l)
+while move_next(i)
+  print get(i);
+wend
+print move_next(i)
+)";
+  EXPECT_EQ("xyFALSE\n", run(script));
+}
+
+TEST_F(InterpreterTest, IteratorOnEmptyList) {
+  EXPECT_EQ("FALSE\n", run("print move_next(iterator(list()))\n"));
+}
+
+TEST_F(InterpreterTest, ForIn) {
+  const std::string script = R"(
+total = 0
+for n in list(1, 2, 3, 4)
+  if n = 4 then
+    exit
+  endif
+  total = total + n
+next n
+print total
+)";
+  EXPECT_EQ("6\n", run(script));
+}
+
+TEST_F(InterpreterTest, ForInRequiresList) {
+  run("for c in \"abc\"\nnext\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:1: error: FOR ... IN: expected a LIST, got STRING", errors.front());
+}
+
+TEST_F(InterpreterTest, ListIndexOutOfRange) {
+  run("l = list(1)\nprint get(l, 1)\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:2: error: GET: index 1 is out of range (list has 1 items)", errors.front());
+}
+
+TEST_F(InterpreterTest, ListInArithmeticIsAnError) {
+  run("l = list()\nprint l + 1\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:2: error: Operator '+' cannot be used with a LIST", errors.front());
+}
+
+TEST_F(InterpreterTest, FunctionWinsOverListIndex) {
+  EXPECT_EQ("fn\n", run("def l(x)\nreturn \"fn\"\nenddef\nl = list(1)\nprint l(0)\n"));
+}
+
+TEST_F(InterpreterTest, LenOfString) {
+  EXPECT_EQ("5\n", run("print len(\"hello\")\n"));
+}
+
+TEST_F(InterpreterTest, Str) {
+  EXPECT_EQ("12ab\n", run("print str(12) + \"ab\"\n"));
+}
