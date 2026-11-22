@@ -4,6 +4,7 @@
 // functions to a module with native_function or native_functionl; see
 // interpreter.h for how to create modules.
 
+#include "wwivbasic/object.h"
 #include "wwivbasic/value.h"
 #include "core/stl.h"
 #include "fmt/format.h"
@@ -11,6 +12,7 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -49,7 +51,13 @@ template <typename T> T from_value(const Value& v) {
   }
 }
 
-// Converts a native function's return value into a script Value.
+namespace detail {
+template <class T> struct is_vector : std::false_type {};
+template <class T, class A> struct is_vector<std::vector<T, A>> : std::true_type {};
+} // namespace detail
+
+// Converts a native function's return value into a script Value. A
+// std::vector becomes a LIST of its converted items.
 template <typename R> Value to_value(R&& r) {
   using D = std::decay_t<R>;
   if constexpr (std::is_same_v<D, Value>) {
@@ -61,6 +69,13 @@ template <typename R> Value to_value(R&& r) {
   } else if constexpr (std::is_floating_point_v<D>) {
     // Whole results become INTEGERs, as in arithmetic.
     return Value::number(static_cast<double>(r));
+  } else if constexpr (detail::is_vector<D>::value) {
+    std::vector<Value> items;
+    items.reserve(r.size());
+    for (auto& item : r) {
+      items.push_back(to_value(item));
+    }
+    return Value::make_list(std::move(items));
   } else {
     return Value(std::string(r));
   }
@@ -90,10 +105,10 @@ template <typename R, typename... Args, size_t... I>
 Value call_native(const std::function<R(Args...)>& f, const std::vector<Value>& params,
                   std::index_sequence<I...>) {
   if constexpr (std::is_void_v<R>) {
-    f(from_value<Args>(params.at(I))...);
+    f(from_value<std::decay_t<Args>>(params.at(I))...);
     return {};
   } else {
-    return to_value(f(from_value<Args>(params.at(I))...));
+    return to_value(f(from_value<std::decay_t<Args>>(params.at(I))...));
   }
 }
 
@@ -177,6 +192,16 @@ public:
     functions.insert_or_assign(name, BasicFunction(name, make_basic_fn(name, f), {}));
   }
 
+  // Describes a C++ class T for scripts (see object.h). The binding is owned
+  // by the module and lives as long as the interpreter. `name` is the class
+  // name scripts see when printing an object or in errors.
+  template <class T> ClassBinding<T>& class_(const std::string& name) {
+    auto binding = std::make_unique<ClassBinding<T>>(name);
+    auto& result = *binding;
+    classes_.push_back(std::move(binding));
+    return result;
+  }
+
   const std::string& name() const { return name_; }
 
 private:
@@ -200,6 +225,7 @@ private:
   // Modules imported using IMPORT "@module".
   std::set<std::string, wwiv::stl::ci_less> imported_modules;
   std::string name_;
+  std::vector<std::unique_ptr<ClassBindingBase>> classes_;
 };
 
 } // namespace wwivbasic

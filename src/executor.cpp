@@ -1,6 +1,7 @@
 #include "executor.h"
 #include "function_def_visitor.h"
 #include "stdlib/collections.h"
+#include "wwivbasic/object.h"
 #include "utils.h"
 #include "BasicLexer.h"
 #include "core/stl.h"
@@ -142,17 +143,56 @@ Value ExecutionVisitor::path_variable(const NamePath& path, const std::string& n
   return v->value();
 }
 
+// Members and methods come from the object's ClassBinding (wwivbasic/object.h).
+// Other values have none.
+
 Value ExecutionVisitor::get_member(const Value& object, const std::string& member) {
-  throw BasicError(fmt::format("Cannot read member '{}' of {}", member, object.a_type_name()));
+  if (!object.is_object()) {
+    throw BasicError(fmt::format("Cannot read member '{}' of {}", member, object.a_type_name()));
+  }
+  const auto data = object.object("get_member");
+  const auto it = data->cls->properties.find(member);
+  if (it == data->cls->properties.end()) {
+    if (data->cls->methods.contains(member)) {
+      throw BasicError(fmt::format("{}.{} is a method; call it with ()", data->cls->name, member));
+    }
+    throw BasicError(fmt::format("{} has no member '{}'", data->cls->name, member));
+  }
+  return it->second.get(data->self.get());
 }
 
-void ExecutionVisitor::set_member(const Value& object, const std::string& member, const Value&) {
-  throw BasicError(fmt::format("Cannot set member '{}' of {}", member, object.a_type_name()));
+void ExecutionVisitor::set_member(const Value& object, const std::string& member,
+                                  const Value& value) {
+  if (!object.is_object()) {
+    throw BasicError(fmt::format("Cannot set member '{}' of {}", member, object.a_type_name()));
+  }
+  const auto data = object.object("set_member");
+  const auto it = data->cls->properties.find(member);
+  if (it == data->cls->properties.end()) {
+    throw BasicError(fmt::format("{} has no member '{}'", data->cls->name, member));
+  }
+  if (!it->second.set) {
+    throw BasicError(fmt::format("{}.{} is read-only", data->cls->name, member));
+  }
+  it->second.set(data->self.get(), value);
 }
 
 Value ExecutionVisitor::call_method(const Value& object, const std::string& method,
-                                    const std::vector<Value>&) {
-  throw BasicError(fmt::format("Cannot call method '{}' on {}", method, object.a_type_name()));
+                                    const std::vector<Value>& params) {
+  if (!object.is_object()) {
+    throw BasicError(fmt::format("Cannot call method '{}' on {}", method, object.a_type_name()));
+  }
+  const auto data = object.object("call_method");
+  const auto it = data->cls->methods.find(method);
+  if (it == data->cls->methods.end()) {
+    if (data->cls->properties.contains(method)) {
+      throw BasicError(
+          fmt::format("{}.{} is a property, not a method; use it without ()", data->cls->name,
+                      method));
+    }
+    throw BasicError(fmt::format("{} has no method '{}'", data->cls->name, method));
+  }
+  return it->second(data->self.get(), params);
 }
 
 std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext* ctx) {
