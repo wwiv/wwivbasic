@@ -36,8 +36,7 @@ jobs:
 
       # vcpkg.json pins builtin-baseline to a vcpkg commit, and vcpkg reads its
       # version database from the checked-out files, so use a clone of exactly
-      # that commit rather than the runner's preinstalled vcpkg. GitHub-hosted
-      # runners already include a Java runtime (for the ANTLR tool).
+      # that commit rather than the runner's preinstalled vcpkg.
       - name: Check out the pinned vcpkg
         shell: bash
         run: |
@@ -54,6 +53,14 @@ jobs:
             ./bootstrap-vcpkg.sh -disableMetrics
           fi
           echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
+
+      # The ANTLR tool needs Java 11 or newer; the Windows runner defaults to
+      # Java 8.
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Get CMake and Ninja
         uses: lukka/get-cmake@latest
