@@ -85,6 +85,8 @@ public:
   std::string toString() const;
   // The type name used in error messages: BOOLEAN, INTEGER, STRING, ...
   std::string type_name() const;
+  // The type name with "a" or "an": "a STRING", "an INTEGER".
+  std::string a_type_name() const;
 
   template <typename T>
   T get() const { return std::get<T>(value_); }

@@ -58,7 +58,9 @@ oneliners.bas:42: error: Unknown function 'outsrt'
 ```
 
 my_basic reported some of these and silently ignored others. Variables that
-were never assigned still read as empty, as before.
+were never assigned still read as empty, as before, but a dotted name such as
+`player.name` whose first part is neither a module nor a variable is an error
+(`Unknown variable or module 'player'`).
 
 ## Real numbers
 

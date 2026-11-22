@@ -108,23 +108,81 @@ Value ExecutionVisitor::call(const std::string& name, const std::vector<Value>& 
   return result;
 }
 
+// Dotted names are resolved at runtime. A name whose prefix is a module
+// (wwiv.io.outstr, m.x) refers to that module. Otherwise the first part is a
+// variable and the rest are members of its value (area.name, obj.method()).
+
+bool ExecutionVisitor::is_module_path(const std::string& name) const {
+  const auto [pkg, id] = split_package_from_id(name);
+  return !pkg.empty() && contains(ec_.modules, pkg);
+}
+
+Value ExecutionVisitor::member_path_root(const std::vector<std::string>& parts,
+                                         const std::string& name) {
+  auto v = ec_.var(parts.front());
+  if (!v) {
+    throw BasicError(fmt::format("Unknown variable or module '{}' in '{}'", parts.front(), name));
+  }
+  return v->value();
+}
+
+Value ExecutionVisitor::get_member(const Value& object, const std::string& member) {
+  throw BasicError(fmt::format("Cannot read member '{}' of {}", member, object.a_type_name()));
+}
+
+void ExecutionVisitor::set_member(const Value& object, const std::string& member, const Value&) {
+  throw BasicError(fmt::format("Cannot set member '{}' of {}", member, object.a_type_name()));
+}
+
+Value ExecutionVisitor::call_method(const Value& object, const std::string& method,
+                                    const std::vector<Value>&) {
+  throw BasicError(fmt::format("Cannot call method '{}' on {}", method, object.a_type_name()));
+}
+
 std::any ExecutionVisitor::visitProcedureCall(BasicParser::ProcedureCallContext* ctx) {
-  const auto fn_name = ctx->procedureName()->getText();
+  const auto fn_name = ctx->qualifiedName()->getText();
   std::vector<Value> params;
   if (ctx->parameterList()) {
     params = std::any_cast<std::vector<Value>>(visit(ctx->parameterList()));
   }
-  // l(i) reads item i of list l, unless a function named l exists.
-  if (!ec_.try_find_function(fn_name)) {
-    if (auto v = ec_.var(fn_name); v && v->value().is_list()) {
-      if (params.size() != 1) {
-        throw BasicError(fmt::format("{}(): a list index takes 1 argument, got {}", fn_name,
-                                     params.size()));
-      }
-      return stdlib::list_get(v->value(), params.front(), fn_name + "()");
+  if (ec_.try_find_function(fn_name) || is_module_path(fn_name)) {
+    return call(fn_name, params);
+  }
+  const auto parts = SplitString(fn_name, ".");
+  if (parts.size() > 1) {
+    // obj.a.method(args)
+    auto object = member_path_root(parts, fn_name);
+    for (size_t i = 1; i + 1 < parts.size(); i++) {
+      object = get_member(object, parts[i]);
     }
+    return call_method(object, parts.back(), params);
+  }
+  // l(i) reads item i of list l.
+  if (auto v = ec_.var(fn_name); v && v->value().is_list()) {
+    if (params.size() != 1) {
+      throw BasicError(fmt::format("{}(): a list index takes 1 argument, got {}", fn_name,
+                                   params.size()));
+    }
+    return stdlib::list_get(v->value(), params.front(), fn_name + "()");
   }
   return call(fn_name, params);
+}
+
+std::any ExecutionVisitor::visitCallChain(BasicParser::CallChainContext* ctx) {
+  auto value = Value(visit(ctx->procedureCall()));
+  for (auto* suffix : ctx->memberSuffix()) {
+    const auto name = suffix->ID()->getText();
+    if (suffix->LPAREN()) {
+      std::vector<Value> params;
+      if (suffix->parameterList()) {
+        params = std::any_cast<std::vector<Value>>(visit(suffix->parameterList()));
+      }
+      value = call_method(value, name, params);
+    } else {
+      value = get_member(value, name);
+    }
+  }
+  return value;
 }
 
 std::any ExecutionVisitor::visitParameterList(BasicParser::ParameterListContext* context) {
@@ -147,8 +205,8 @@ std::any ExecutionVisitor::visitModuleDefinition(BasicParser::ModuleDefinitionCo
 
 std::any ExecutionVisitor::visitImportModule(BasicParser::ImportModuleContext* context) {
   std::string name;
-  if (context->ID()) {
-    name = context->ID()->getText();
+  if (context->qualifiedName()) {
+    name = context->qualifiedName()->getText();
   } else {
     name = remove_quotes(context->STRING()->getText());
     if (!starts_with(name, "@")) {
@@ -243,7 +301,7 @@ std::any ExecutionVisitor::visitStatement(BasicParser::StatementContext* context
 // Expressions
 
 std::any ExecutionVisitor::visitProcCall(BasicParser::ProcCallContext* context) {
-  return visit(context->procedureCall());
+  return visit(context->callChain());
 }
 
 std::any ExecutionVisitor::visitParens(BasicParser::ParensContext* context) {
@@ -255,7 +313,17 @@ std::any ExecutionVisitor::visitIdent(BasicParser::IdentContext* context) {
 }
 
 std::any ExecutionVisitor::visitRvalue(BasicParser::RvalueContext* context) {
-  if (auto v = ec_.var(context->getText())) {
+  const auto name = context->getText();
+  const auto parts = SplitString(name, ".");
+  if (parts.size() > 1 && !is_module_path(name)) {
+    // obj.a.b
+    auto value = member_path_root(parts, name);
+    for (size_t i = 1; i < parts.size(); i++) {
+      value = get_member(value, parts[i]);
+    }
+    return value;
+  }
+  if (auto v = ec_.var(name)) {
     return v->value();
   }
   // Like most BASICs, an unset variable reads as empty.
@@ -357,6 +425,16 @@ ExecutionVisitor::visitAssignmentStatement(BasicParser::AssignmentStatementConte
   const auto name = context->lvalue()->getText();
   const auto value = eval(context->expr());
   ec_.trace_log("ASSIGN {} = '{}'", name, value);
+  const auto parts = SplitString(name, ".");
+  if (parts.size() > 1 && !is_module_path(name)) {
+    // obj.a.b = value
+    auto object = member_path_root(parts, name);
+    for (size_t i = 1; i + 1 < parts.size(); i++) {
+      object = get_member(object, parts[i]);
+    }
+    set_member(object, parts.back(), value);
+    return {};
+  }
   ec_.upsert(name, value);
   return {};
 }

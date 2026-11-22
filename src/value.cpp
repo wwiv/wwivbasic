@@ -59,6 +59,13 @@ IteratorPtr Value::iterator(std::string_view fn) const {
   return std::get<IteratorPtr>(value_);
 }
 
+std::string Value::a_type_name() const {
+  const auto name = type_name();
+  const bool vowel =
+      !name.empty() && std::string_view("AEIOU").find(name.front()) != std::string_view::npos;
+  return (vowel ? "an " : "a ") + name;
+}
+
 std::string Value::type_name() const {
   switch (type) {
   case Type::BOOLEAN:
@@ -179,7 +186,7 @@ std::string Value::toString() const {
 void Value::check_scalar(const Value& that, std::string_view op) const {
   for (const auto* v : {this, &that}) {
     if (v->type == Type::LIST || v->type == Type::ITERATOR) {
-      throw BasicError(fmt::format("Operator '{}' cannot be used with a {}", op, v->type_name()));
+      throw BasicError(fmt::format("Operator '{}' cannot be used with {}", op, v->a_type_name()));
     }
   }
 }

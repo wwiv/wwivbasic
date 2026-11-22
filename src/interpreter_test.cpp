@@ -436,5 +436,69 @@ TEST_F(InterpreterTest, NativeFunctionWithDouble) {
 }
 
 TEST_F(InterpreterTest, SortReals) {
-  EXPECT_EQ("0.5 1 2.5 x ", run("for v in sort(list(\"x\", 2.5, 1, 0.5))\nprint v; \" \";\nnext\n"));
+  EXPECT_EQ("0.5 1 2.5 x ",
+            run("for v in sort(list(\"x\", 2.5, 1, 0.5))\nprint v; \" \";\nnext\n"));
+}
+
+// Member access (M3). No values have members yet, so these check parsing,
+// module paths, and the errors for members of plain values.
+
+TEST_F(InterpreterTest, MemberChainsParse) {
+  RunOptions options;
+  options.execute = false;
+  const auto result = interp.run_source(
+      "t.bas", "x = area.headers().count\narea.name = \"x\"\nprint a.b(1).c().d\nobj.go()\n",
+      options);
+  EXPECT_TRUE(result.ok()) << result.errors.front();
+}
+
+TEST_F(InterpreterTest, ModulePathsStillWork) {
+  auto& io = interp.add_module("wwiv.io");
+  io.native_function("OUTSTR", [this](std::string s) { output += s; });
+  interp.add_module("wwiv").native_function("VERSION", []() { return std::string("5"); });
+  EXPECT_EQ("v5", run("import @wwiv.io\nwwiv.io.outstr(\"v\")\noutstr(wwiv.version())\n"));
+  EXPECT_TRUE(errors.empty()) << errors.front();
+}
+
+TEST_F(InterpreterTest, SpacesAroundDots) {
+  interp.add_module("wwiv").native_function("VERSION", []() { return std::string("5"); });
+  EXPECT_EQ("5\n", run("print wwiv . version()\n"));
+}
+
+TEST_F(InterpreterTest, UnknownFunctionInModule) {
+  interp.add_module("wwiv.io");
+  run("wwiv.io.nosuch()\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:1: error: Unknown function 'wwiv.io.nosuch'", errors.front());
+}
+
+TEST_F(InterpreterTest, MemberOfPlainValueIsAnError) {
+  run("s = \"text\"\nprint s.size\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:2: error: Cannot read member 'size' of a STRING", errors.front());
+}
+
+TEST_F(InterpreterTest, SetMemberOfPlainValueIsAnError) {
+  run("n = 1\nn.x = 2\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:2: error: Cannot set member 'x' of an INTEGER", errors.front());
+}
+
+TEST_F(InterpreterTest, MethodOfPlainValueIsAnError) {
+  run("l = list()\nl.clear()\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:2: error: Cannot call method 'clear' on a LIST", errors.front());
+}
+
+TEST_F(InterpreterTest, MemberOfCallResultIsAnError) {
+  run("print str(1).x\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:1: error: Cannot read member 'x' of a STRING", errors.front());
+}
+
+TEST_F(InterpreterTest, UnknownMemberPathRoot) {
+  run("print nosuch.x\n");
+  ASSERT_EQ(1u, errors.size());
+  EXPECT_EQ("test.bas:1: error: Unknown variable or module 'nosuch' in 'nosuch.x'",
+            errors.front());
 }

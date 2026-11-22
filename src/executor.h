@@ -24,6 +24,7 @@ public:
 
   std::any visitMain(BasicParser::MainContext* context) override;
   std::any visitProcedureCall(BasicParser::ProcedureCallContext* context) override;
+  std::any visitCallChain(BasicParser::CallChainContext* ctx) override;
   std::any visitParameterList(BasicParser::ParameterListContext* context) override;
   std::any visitProcedureDefinition(BasicParser::ProcedureDefinitionContext* context) override;
   std::any visitImportModule(BasicParser::ImportModuleContext* context) override;
@@ -67,6 +68,16 @@ private:
   Value eval(BasicParser::ExprContext* e);
   // Runs a loop body; returns false if the loop must stop (EXIT/RETURN/END).
   bool run_loop_body(BasicParser::StatementsContext* body);
+  // True if a dotted name's prefix is a module (wwiv.io.outstr, m.x).
+  bool is_module_path(const std::string& name) const;
+  // The value of the variable that starts a member path such as obj.a.b.
+  Value member_path_root(const std::vector<std::string>& parts, const std::string& name);
+  // Members and methods of values (obj.name, obj.name = v, obj.name(args)).
+  // No values have members yet; these raise errors. See docs/PLAN.md (M3).
+  Value get_member(const Value& object, const std::string& member);
+  void set_member(const Value& object, const std::string& member, const Value& value);
+  Value call_method(const Value& object, const std::string& method,
+                    const std::vector<Value>& params);
   // Loads, defines and runs IMPORT "file.bas" (once per file).
   void import_file(const std::string& name);
 
